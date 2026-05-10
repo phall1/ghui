@@ -69,6 +69,14 @@ if (process.argv[2] === "upgrade") {
 const scriptPath = fs.realpathSync(__filename)
 const scriptDir = path.dirname(scriptPath)
 
+// Source-checkout dev mode: `dev/` is omitted from the npm artifact, so this
+// branch only fires when ghui is invoked from a cloned tree (e.g. `bun link`).
+const sourceEntry = path.join(scriptDir, "..", "src", "standalone.ts")
+const sourceMarker = path.join(scriptDir, "..", "dev", "build-cli.ts")
+if (fs.existsSync(sourceMarker) && fs.existsSync(sourceEntry)) {
+	run("bun", [sourceEntry, ...process.argv.slice(2)])
+}
+
 const platform = platformMap[os.platform()]
 const arch = archMap[os.arch()]
 
