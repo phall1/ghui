@@ -1,5 +1,5 @@
 import { RegistryContext, useAtomSet } from "@effect/atom-react"
-import { type MutableRefObject, useContext, useState } from "react"
+import { type MutableRefObject, useContext, useRef, useState } from "react"
 import { config } from "../../config.js"
 import { errorMessage } from "../../errors.js"
 import type { PullRequestLoad } from "../../pullRequestLoad.js"
@@ -29,14 +29,34 @@ export interface UseLoadMoreResult {
 	readonly resetLoadingMore: () => void
 }
 
+// Surfaces a stuck fetch as a flash notice instead of a permanently spinning
+// load-more row. Slightly longer than GitHub's typical p99 to avoid
+// false-positives, short enough that a wedged response doesn't ruin the UX.
+const LOAD_MORE_TIMEOUT_MS = 15_000
+
 /**
  * Owns the load-more pagination state machine: gates, generation guard,
  * cache append, optimistic-write to in-memory cache, and SQLite persistence.
+ *
+ * Concurrency model:
+ *   - `inFlightKeyRef` is the *synchronous* "is a fetch in flight" lock.
+ *     React state (`setLoadingMoreKey`) is async, so two triggers within
+ *     the same tick can both pass a state-only guard and fire parallel
+ *     fetches with the same cursor. That race wedges pagination: the
+ *     second response sees cursorAdvanced=false (cursor already moved by
+ *     the first) and flips hasNextPage to false at 50 loaded.
+ *   - The ref is checked + set *before* any awaited work; the matching
+ *     `.finally` clears both ref and state.
  *
  * Generation guard via the shared `refreshGenerationRef`: if a refresh or
  * view switch happens mid-flight, the response is silently dropped. The
  * `.finally` clears the loading flag iff this fetch is still the one we
  * care about (`current === cacheKey`).
+ *
+ * Timeout: a 15s `Promise.race` surfaces a hanging fetch as a flash notice
+ * + cleared spinner. The underlying Effect isn't cancelled (no AbortSignal
+ * threaded through), so it keeps running in the background — but the local
+ * `.then` ignores its late resolution because the race already settled.
  */
 export const useLoadMore = ({
 	activeView,
@@ -51,23 +71,27 @@ export const useLoadMore = ({
 	const registry = useContext(RegistryContext)
 	const loadPullRequestPage = useAtomSet(listOpenPullRequestPageAtom, { mode: "promise" })
 	const writeQueueCache = useAtomSet(writeQueueCacheAtom, { mode: "promise" })
-	// Component-local loading flag: a keepAlive atom would retain the
-	// "in flight" key across hot reloads even though the original Promise
-	// was abandoned mid-flight, leaving the spinner stuck. The atom shadow
-	// in atoms.ts (`loadingMoreKeyAtom` / `isLoadingMorePullRequestsAtom`)
-	// is still exported so commands can read the flag once dispatch is
-	// wired through there — we just don't depend on it here.
+	const inFlightKeyRef = useRef<string | null>(null)
+	// Component-local loading flag mirrors the ref so the UI re-renders when
+	// loading state changes. The ref is the source of truth for the guard.
 	const [loadingMoreKey, setLoadingMoreKey] = useState<string | null>(null)
 	const isLoadingMorePullRequests = loadingMoreKey === currentQueueCacheKey
 
 	const loadMorePullRequests = (): boolean => {
-		if (!pullRequestLoad || !hasMorePullRequests || isLoadingMorePullRequests || !pullRequestLoad.endCursor) return false
+		if (inFlightKeyRef.current !== null) return false
+		if (!pullRequestLoad || !hasMorePullRequests || !pullRequestLoad.endCursor) return false
 		const remaining = config.prFetchLimit - pullRequestLoad.data.length
 		if (remaining <= 0) return false
 		const cacheKey = currentQueueCacheKey
 		const generation = refreshGenerationRef.current
+		inFlightKeyRef.current = cacheKey
 		setLoadingMoreKey(cacheKey)
-		void loadPullRequestPage(viewToListInput(activeView, pullRequestLoad.endCursor, Math.min(pullRequestPageSize, remaining)))
+		const fetchPromise = loadPullRequestPage(viewToListInput(activeView, pullRequestLoad.endCursor, Math.min(pullRequestPageSize, remaining)))
+		let timeoutId: ReturnType<typeof globalThis.setTimeout> | null = null
+		const timeoutPromise = new Promise<never>((_, reject) => {
+			timeoutId = globalThis.setTimeout(() => reject(new Error(`Load more timed out after ${LOAD_MORE_TIMEOUT_MS / 1000}s`)), LOAD_MORE_TIMEOUT_MS)
+		})
+		void Promise.race([fetchPromise, timeoutPromise])
 			.then((page) => {
 				if (generation !== refreshGenerationRef.current) return
 				const currentLoad = registry.get(queueLoadCacheAtom)[cacheKey]
@@ -84,12 +108,17 @@ export const useLoadMore = ({
 				flashNotice(errorMessage(error))
 			})
 			.finally(() => {
+				if (timeoutId !== null) globalThis.clearTimeout(timeoutId)
+				if (inFlightKeyRef.current === cacheKey) inFlightKeyRef.current = null
 				setLoadingMoreKey((current) => (current === cacheKey ? null : current))
 			})
 		return true
 	}
 
-	const resetLoadingMore = () => setLoadingMoreKey(null)
+	const resetLoadingMore = () => {
+		inFlightKeyRef.current = null
+		setLoadingMoreKey(null)
+	}
 
 	return { loadMorePullRequests, isLoadingMorePullRequests, resetLoadingMore }
 }

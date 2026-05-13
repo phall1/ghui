@@ -84,7 +84,10 @@ export const buildPullRequestListRows = ({
 		for (const pullRequest of pullRequests) rows.push({ _tag: "pull-request", pullRequest, numberWidth, ageWidth })
 	}
 	if (status === "ready" && itemCount > 0 && (hasMore || isLoadingMore)) {
-		rows.push({ _tag: "load-more", text: isLoadingMore ? `${loadingIndicator} Loading more pull requests... (${loadedCount} loaded)` : `- ${loadedCount} loaded, more available` })
+		rows.push({
+			_tag: "load-more",
+			text: isLoadingMore ? `${loadingIndicator} Loading more pull requests... (${loadedCount} loaded)` : `↓ Press j to load more  ·  ${loadedCount} loaded`,
+		})
 	}
 	return rows
 }

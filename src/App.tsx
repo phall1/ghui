@@ -74,7 +74,6 @@ import { useWorkspaceNavigation } from "./hooks/useWorkspaceNavigation.js"
 import { useDiffSelectionSync } from "./hooks/useDiffSelectionSync.js"
 import { useDiffViewState } from "./hooks/useDiffViewState.js"
 import { useViewModeState } from "./hooks/useViewModeState.js"
-import { useLoadMoreOnScroll } from "./hooks/useLoadMoreOnScroll.js"
 import { useLoadMore } from "./ui/pullRequests/useLoadMore.js"
 import { useFilterModal } from "./ui/filter/useFilterModal.js"
 import { useRefreshCompletionToast } from "./ui/pullRequests/useRefreshCompletionToast.js"
@@ -595,19 +594,6 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 		setQueueSelection,
 		issues,
 		pullRequests,
-	})
-
-	useLoadMoreOnScroll({
-		prListScrollRef,
-		visiblePullRequestsLength: visiblePullRequests.length,
-		pullRequestListFilterActive,
-		selectedIndex,
-		hasMorePullRequests,
-		isLoadingMorePullRequests,
-		detailFullView,
-		diffFullView,
-		currentQueueCacheKey,
-		loadMorePullRequests,
 	})
 
 	useScrollFollowSelected(prListScrollRef, selectedPullRequestRowIndex)
