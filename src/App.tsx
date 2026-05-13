@@ -1,4 +1,4 @@
-import { TextAttributes, type ScrollBoxRenderable } from "@opentui/core"
+import { type ScrollBoxRenderable } from "@opentui/core"
 import { RegistryContext, useAtom, useAtomRefresh, useAtomSet, useAtomValue } from "@effect/atom-react"
 import { useKeymap } from "@ghui/keymap/react"
 import { appKeymap, type AppCtx } from "./keymap/all.js"
@@ -26,7 +26,7 @@ import { errorMessage } from "./errors.js"
 import { nextView, parseRepositoryInput, type PullRequestView, viewCacheKey, viewEquals } from "./pullRequestViews.js"
 
 import { ACTIVE_FILTER_BAR_HEIGHT } from "./ui/ActiveFilterBar.js"
-import { colors, rowHoverBackground } from "./ui/colors.js"
+import { colors } from "./ui/colors.js"
 import {
 	favoriteRepositoriesAtom,
 	readRepoRollupAtom,
@@ -188,6 +188,7 @@ import { type RepositoryListItem } from "./ui/RepoList.js"
 import { IssueSurface } from "./surfaces/IssueSurface.js"
 import { PullRequestSurface } from "./surfaces/PullRequestSurface.js"
 import { RepoSurface } from "./surfaces/RepoSurface.js"
+import { WorkspaceHeader } from "./surfaces/WorkspaceHeader.js"
 import { WorkspaceModals } from "./surfaces/WorkspaceModals.js"
 import { WorkspaceTabs, workspaceTabSeparatorColumns } from "./ui/WorkspaceTabs.js"
 import { getIssueDetailJunctionRows, issueListRowIndex, issueListVisualLineCount, orderIssuesForDisplay } from "./ui/IssueList.js"
@@ -2259,38 +2260,20 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 		}
 		return selectedDiffCommentAnchor && selectedDiffCommentLabel ? `${selectedDiffCommentAnchor.path} ${selectedDiffCommentLabel}` : "No diff line selected"
 	})()
-	const homeCrumbBg = selectedRepository && homeCrumbHovered ? rowHoverBackground() : undefined
-	const headerContent = selectedRepository ? (
-		<>
-			<box width={homeCrumb.length} height={1} onMouseDown={() => goUpWorkspaceScope()} onMouseOver={() => setHomeCrumbHovered(true)} onMouseOut={() => setHomeCrumbHovered(false)}>
-				<text wrapMode="none" truncate fg={colors.muted} {...(homeCrumbBg === undefined ? {} : { bg: homeCrumbBg })} attributes={TextAttributes.BOLD}>
-					{homeCrumb}
-				</text>
-			</box>
-			<TextLine width={breadcrumbSeparatorText.length}>
-				<span fg={colors.separator} attributes={TextAttributes.BOLD}>
-					{breadcrumbSeparatorText}
-				</span>
-			</TextLine>
-			<TextLine width={headerRepoWidth}>
-				<span fg={colors.text} attributes={TextAttributes.BOLD}>
-					{headerRepoWidth > 0 ? fitCell(selectedRepository, headerRepoWidth) : ""}
-				</span>
-			</TextLine>
-		</>
-	) : (
-		<TextLine width={headerLeftWidth}>
-			<span fg={colors.text} attributes={TextAttributes.BOLD}>
-				{fitCell(homeCrumb, headerLeftWidth)}
-			</span>
-		</TextLine>
-	)
-
 	return (
 		<box width={terminalWidth} height={terminalHeight} flexDirection="column" backgroundColor={colors.background}>
 			<box paddingLeft={1} paddingRight={1} flexDirection="column" backgroundColor={colors.background}>
 				<box width={headerFooterWidth} height={1} flexDirection="row">
-					{headerContent}
+					<WorkspaceHeader
+						selectedRepository={selectedRepository}
+						homeCrumb={homeCrumb}
+						breadcrumbSeparatorText={breadcrumbSeparatorText}
+						headerLeftWidth={headerLeftWidth}
+						headerRepoWidth={headerRepoWidth}
+						homeCrumbHovered={homeCrumbHovered}
+						setHomeCrumbHovered={setHomeCrumbHovered}
+						goUpWorkspaceScope={goUpWorkspaceScope}
+					/>
 					{headerRight ? (
 						<TextLine width={headerRight.length}>
 							<span fg={colors.muted}>{headerRight}</span>
