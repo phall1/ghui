@@ -84,6 +84,7 @@ import { useFocusReturnRefresh } from "./hooks/useFocusReturnRefresh.js"
 import { useCommentsLoader } from "./hooks/useCommentsLoader.js"
 import { useDiffLoader } from "./hooks/useDiffLoader.js"
 import { useLinkNavigation } from "./hooks/useLinkNavigation.js"
+import { usePasteRouter } from "./hooks/usePasteRouter.js"
 import { useWorkspaceNavigation } from "./hooks/useWorkspaceNavigation.js"
 import { useDiffSelectionSync } from "./hooks/useDiffSelectionSync.js"
 import { useLoadMoreOnScroll } from "./hooks/useLoadMoreOnScroll.js"
@@ -116,7 +117,7 @@ import { useDiffPrefetch } from "./ui/diff/useDiffPrefetch.js"
 import { themeIdAtom } from "./ui/theme/atoms.js"
 import { useThemeModal } from "./ui/theme/useThemeModal.js"
 import { useMergeFlow } from "./ui/merge/useMergeFlow.js"
-import { insertText, type CommentEditorValue } from "./ui/commentEditor.js"
+import type { CommentEditorValue } from "./ui/commentEditor.js"
 import { minimizeWhitespaceDiffFiles, pullRequestDiffKey } from "./ui/diff.js"
 import { type DetailCommentsStatus, type DetailPlaceholderContent } from "./ui/DetailsPane.js"
 import { RetryProgress } from "./ui/FooterHints.js"
@@ -166,10 +167,8 @@ import { WorkspaceHeader } from "./surfaces/WorkspaceHeader.js"
 import { WorkspaceModals } from "./surfaces/WorkspaceModals.js"
 import { WorkspaceTabs } from "./ui/WorkspaceTabs.js"
 import { issueListRowIndex, orderIssuesForDisplay } from "./ui/IssueList.js"
-import { singleLineText } from "./ui/singleLineInput.js"
 import { SPINNER_FRAMES } from "./ui/spinner.js"
 import { useClampedIndex } from "./ui/useClampedIndex.js"
-import { usePasteHandler } from "./ui/usePasteHandler.js"
 import { useScrollFollowSelected } from "./ui/useScrollFollowSelected.js"
 import { useScrollPersistence } from "./ui/useScrollPersistence.js"
 import { useSpinnerFrame } from "./ui/useSpinnerFrame.js"
@@ -1187,44 +1186,25 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 		switchViewTo({ _tag: "Repository", repository })
 		flashNotice(`Opened ${repository}`)
 	}
-	const insertPastedText = (text: string) => {
-		if (text.length === 0) return false
-		if (commandPaletteActive) {
-			setCommandPalette((current) => ({ ...current, query: current.query + singleLineText(text), selectedIndex: 0 }))
-			return true
-		}
-		if (openRepositoryModalActive) {
-			setOpenRepositoryModal((current) => ({ ...current, query: current.query + singleLineText(text), error: null }))
-			return true
-		}
-		if (themeModalActive && themeModal.filterMode) {
-			editThemeQuery((query) => query + singleLineText(text))
-			return true
-		}
-		if (commentModalActive) return false
-		if (submitReviewModalActive) {
-			setSubmitReviewModal((current) => {
-				const next = insertText({ body: current.body, cursor: current.cursor }, text.replace(/\r\n?/g, "\n"))
-				return { ...current, focus: "body", body: next.body, cursor: next.cursor, error: null }
-			})
-			return true
-		}
-		if (labelModalActive) {
-			setLabelModal((current) => ({ ...current, query: current.query + singleLineText(text), selectedIndex: 0 }))
-			return true
-		}
-		if (changedFilesModalActive) {
-			setChangedFilesModal((current) => ({ ...current, query: current.query + singleLineText(text), selectedIndex: 0 }))
-			return true
-		}
-		if (filterMode) {
-			setFilterDraft((current) => current + singleLineText(text))
-			return true
-		}
-		return false
-	}
-
-	usePasteHandler({ renderer, onPaste: insertPastedText })
+	usePasteRouter({
+		renderer,
+		commandPaletteActive,
+		openRepositoryModalActive,
+		themeModalActive,
+		themeModal,
+		commentModalActive,
+		submitReviewModalActive,
+		labelModalActive,
+		changedFilesModalActive,
+		filterMode,
+		setCommandPalette,
+		setOpenRepositoryModal,
+		editThemeQuery,
+		setSubmitReviewModal,
+		setLabelModal,
+		setChangedFilesModal,
+		setFilterDraft,
+	})
 
 	const dispatchCommand = useAtomSet(dispatchCommandAtom, { mode: "promise" })
 	const commandSnapshots = useAtomValue(commandSnapshotsAtom)
