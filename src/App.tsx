@@ -84,6 +84,7 @@ import { useModalSelectionMovers } from "./hooks/useModalSelectionMovers.js"
 import { useKeymapWiring } from "./hooks/useKeymapWiring.js"
 import { useModalStack } from "./hooks/useModalStack.js"
 import { usePullRequestMutations } from "./hooks/usePullRequestMutations.js"
+import { usePullRequestRefresh } from "./hooks/usePullRequestRefresh.js"
 import { usePasteRouter } from "./hooks/usePasteRouter.js"
 import { useWorkspaceNavigation } from "./hooks/useWorkspaceNavigation.js"
 import { useDiffSelectionSync } from "./hooks/useDiffSelectionSync.js"
@@ -564,24 +565,15 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 		setQueueLoadCache,
 	})
 
-	const refreshPullRequests = (message?: string, options: { readonly resetTransientState?: boolean } = {}) => {
-		if (pullRequestFetchInFlight) return
-		refreshGenerationRef.current += 1
-		resetHydration()
-		resetLoadingMore()
-		setPullRequestOverrides({})
-		if (options.resetTransientState) {
-			setRecentlyCompletedPullRequests({})
-			setPullRequestComments({})
-			setPullRequestCommentsLoaded({})
-		}
-		if (message) {
-			setNotice(null)
-			armRefreshToast(message)
-		}
-		refreshPullRequestsAtom()
-	}
-	refreshPullRequestsRef.current = refreshPullRequests
+	const { terminalFocusedRef } = useFocusReturnRefresh({
+		renderer,
+		lastRefreshAtRef: lastPullRequestRefreshAtRef,
+		refreshGeneration: pullRequestLoad?.fetchedAt?.getTime(),
+		focusReturnMinMs: FOCUS_RETURN_REFRESH_MIN_MS,
+		idleAfterMs: FOCUSED_IDLE_REFRESH_MS,
+		jitterMs: AUTO_REFRESH_JITTER_MS,
+		onRefresh: (ms) => maybeRefreshPullRequestsRef.current(ms),
+	})
 
 	const { armRefreshToast, cancelRefreshToast } = useRefreshCompletionToast({
 		pullRequestStatus,
@@ -592,6 +584,26 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 		lastPullRequestRefreshAtRef,
 		flashNotice,
 		pullRequests,
+	})
+
+	const { refreshPullRequests } = usePullRequestRefresh({
+		pullRequestLoad,
+		pullRequestFetchInFlight,
+		refreshGenerationRef,
+		lastPullRequestRefreshAtRef,
+		pullRequestStatusRef,
+		terminalFocusedRef,
+		maybeRefreshPullRequestsRef,
+		refreshPullRequestsRef,
+		resetHydration,
+		resetLoadingMore,
+		setPullRequestOverrides,
+		setRecentlyCompletedPullRequests,
+		setPullRequestComments,
+		setPullRequestCommentsLoaded,
+		setNotice,
+		armRefreshToast,
+		refreshPullRequestsAtom,
 	})
 
 	const {
@@ -657,20 +669,6 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 		listIssueComments,
 		flashNotice,
 	})
-	maybeRefreshPullRequestsRef.current = (minimumAgeMs) => {
-		if (!terminalFocusedRef.current || pullRequestStatusRef.current === "loading" || pullRequestFetchInFlight) return
-		const lastRefreshAt = lastPullRequestRefreshAtRef.current
-		if (lastRefreshAt > 0 && Date.now() - lastRefreshAt < minimumAgeMs) return
-		refreshPullRequestsRef.current()
-	}
-
-	useEffect(() => {
-		const fetchedAt = pullRequestLoad?.fetchedAt?.getTime()
-		if (fetchedAt !== undefined) {
-			lastPullRequestRefreshAtRef.current = fetchedAt
-		}
-	}, [pullRequestLoad?.fetchedAt])
-
 	// View-change refetch is now driven by `pullRequestsAtom`'s reactive
 	// dependency on `activeViewAtom`. `pullRequestLoadAtom` reads the in-memory
 	// cache first, so the user sees the previous list instantly while the new
@@ -682,16 +680,6 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 	useEffect(() => {
 		void pruneCache().catch(() => {})
 	}, [pruneCache])
-
-	const { terminalFocusedRef } = useFocusReturnRefresh({
-		renderer,
-		lastRefreshAtRef: lastPullRequestRefreshAtRef,
-		refreshGeneration: pullRequestLoad?.fetchedAt?.getTime(),
-		focusReturnMinMs: FOCUS_RETURN_REFRESH_MIN_MS,
-		idleAfterMs: FOCUSED_IDLE_REFRESH_MS,
-		jitterMs: AUTO_REFRESH_JITTER_MS,
-		onRefresh: (ms) => maybeRefreshPullRequestsRef.current(ms),
-	})
 
 	useClampedIndex(visiblePullRequests.length, setSelectedIndex)
 	useClampedIndex(issues.length, setSelectedIssueIndex)
