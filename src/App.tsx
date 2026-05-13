@@ -77,6 +77,7 @@ import { useCommentsLoader } from "./hooks/useCommentsLoader.js"
 import { useCommentsViewActions } from "./hooks/useCommentsViewActions.js"
 import { useDiffLoader } from "./hooks/useDiffLoader.js"
 import { useLinkNavigation } from "./hooks/useLinkNavigation.js"
+import { useLoadingStatus } from "./hooks/useLoadingStatus.js"
 import { useCommandRegistry } from "./hooks/useCommandRegistry.js"
 import { useListSelectionStepping } from "./hooks/useListSelectionStepping.js"
 import { useModalSelectionMovers } from "./hooks/useModalSelectionMovers.js"
@@ -132,11 +133,9 @@ import { WorkspaceHeader } from "./surfaces/WorkspaceHeader.js"
 import { WorkspaceModals } from "./surfaces/WorkspaceModals.js"
 import { WorkspaceTabs } from "./ui/WorkspaceTabs.js"
 import { issueListRowIndex, orderIssuesForDisplay } from "./ui/IssueList.js"
-import { SPINNER_FRAMES } from "./ui/spinner.js"
 import { useClampedIndex } from "./ui/useClampedIndex.js"
 import { useScrollFollowSelected } from "./ui/useScrollFollowSelected.js"
 import { useScrollPersistence } from "./ui/useScrollPersistence.js"
-import { useSpinnerFrame } from "./ui/useSpinnerFrame.js"
 import { useCommandHandoffs } from "./hooks/useCommandHandoffs.js"
 import { useDiffCommentDerivations } from "./hooks/useDiffCommentDerivations.js"
 import { useDiffCommentNavigator } from "./hooks/useDiffCommentNavigator.js"
@@ -806,37 +805,28 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [diffFullView])
 	const selectedPullRequestDetailKey = selectedPullRequest ? pullRequestDetailKey(selectedPullRequest) : null
-	const selectedPullRequestDetailHydrationState = selectedPullRequestDetailKey ? (detailHydrationState[selectedPullRequestDetailKey] ?? null) : null
-	const selectedPullRequestDetailError = selectedPullRequestDetailHydrationState?._tag === "Error" ? selectedPullRequestDetailHydrationState.message : null
-	const isHydratingPullRequestDetails = selectedPullRequestDetailHydrationState?._tag === "Loading"
-	const isRefreshingPullRequests = pullRequestResult.waiting && pullRequestLoad !== null
-	const isActiveSurfaceLoading =
-		(activeWorkspaceSurface === "pullRequests" && (pullRequestStatus === "loading" || isRefreshingPullRequests || isHydratingPullRequestDetails || isLoadingMorePullRequests)) ||
-		(activeWorkspaceSurface === "issues" && issuesStatus === "loading")
-	const hasActiveLoadingIndicator =
-		pullRequestResult.waiting ||
-		isHydratingPullRequestDetails ||
-		isLoadingMorePullRequests ||
-		selectedCommentsStatus === "loading" ||
-		labelModal.loading ||
-		closeModal.running ||
-		pullRequestStateModal.running ||
-		mergeModal.loading ||
-		mergeModal.running ||
-		submitReviewModal.running ||
-		selectedDiffState?._tag === "Loading"
-	const loadingFrame = useSpinnerFrame({ active: hasActiveLoadingIndicator, reset: isInitialLoading })
-	const loadingIndicator = SPINNER_FRAMES[loadingFrame % SPINNER_FRAMES.length]!
-
-	useEffect(() => {
-		if (startupLoadComplete || pullRequestStatus === "loading") return
-		setStartupLoadComplete(true)
-	}, [startupLoadComplete, pullRequestStatus])
-
-	useEffect(() => {
-		if (pullRequestStatus !== "ready" || !selectedPullRequest) return
-		loadPullRequestComments(selectedPullRequest)
-	}, [pullRequestStatus, selectedPullRequest?.url, selectedPullRequest?.headRefOid, selectedPullRequest?.repository, selectedPullRequest?.number])
+	const { selectedPullRequestDetailError, isActiveSurfaceLoading, loadingFrame, loadingIndicator } = useLoadingStatus({
+		selectedPullRequestDetailKey,
+		detailHydrationState,
+		pullRequestResult,
+		pullRequestLoad,
+		pullRequestStatus,
+		issuesStatus,
+		isLoadingMorePullRequests,
+		activeWorkspaceSurface,
+		selectedCommentsStatus,
+		selectedDiffState,
+		labelModal,
+		closeModal,
+		pullRequestStateModal,
+		mergeModal,
+		submitReviewModal,
+		isInitialLoading,
+		startupLoadComplete,
+		setStartupLoadComplete,
+		selectedPullRequest,
+		loadPullRequestComments,
+	})
 
 	const detailPlaceholderContent = getDetailPlaceholderContent({
 		status: pullRequestStatus,
