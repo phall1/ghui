@@ -10,6 +10,7 @@ export interface UseListSelectionSteppingInput {
 	readonly selectedIndex: number
 	readonly visibleHasMorePullRequests: boolean
 	readonly loadMoreSlotAvailable: boolean
+	readonly issueLoadMoreSlotAvailable: boolean
 	readonly groupStarts: readonly number[]
 	readonly getCurrentGroupIndex: (current: number) => number
 	readonly setSelectedIndex: (next: number | ((current: number) => number)) => void
@@ -47,6 +48,7 @@ export const useListSelectionStepping = ({
 	repositoryItems,
 	selectedIndex,
 	loadMoreSlotAvailable,
+	issueLoadMoreSlotAvailable,
 	groupStarts,
 	getCurrentGroupIndex,
 	setSelectedIndex,
@@ -54,6 +56,7 @@ export const useListSelectionStepping = ({
 	setSelectedRepositoryIndex,
 }: UseListSelectionSteppingInput): ListSelectionStepping => {
 	const prMaxIndex = () => Math.max(0, visiblePullRequests.length - 1 + (loadMoreSlotAvailable ? 1 : 0))
+	const issueMaxIndex = () => Math.max(0, issues.length - 1 + (issueLoadMoreSlotAvailable ? 1 : 0))
 	const moveSelectedToPreviousGroup = () =>
 		setSelectedIndex((current) => {
 			if (activeWorkspaceSurface !== "pullRequests") return current
@@ -79,7 +82,7 @@ export const useListSelectionStepping = ({
 			: activeWorkspaceSurface === "issues"
 				? setSelectedIssueIndex((current) => {
 						if (issues.length === 0) return 0
-						return Math.max(0, Math.min(issues.length - 1, current + delta))
+						return Math.max(0, Math.min(issueMaxIndex(), current + delta))
 					})
 				: setSelectedIndex((current) => {
 						if (visiblePullRequests.length === 0) return 0
@@ -98,7 +101,8 @@ export const useListSelectionStepping = ({
 		if (activeWorkspaceSurface === "issues") {
 			setSelectedIssueIndex((current) => {
 				if (issues.length === 0) return 0
-				return current >= issues.length - 1 ? 0 : current + 1
+				const max = issueMaxIndex()
+				return current >= max ? 0 : current + 1
 			})
 			return
 		}

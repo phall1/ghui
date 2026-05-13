@@ -2,7 +2,7 @@ import { Effect } from "effect"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import * as Atom from "effect/unstable/reactivity/Atom"
 import type { IssueItem } from "../../domain.js"
-import { issueQueryToListInput } from "../../item.js"
+import { type ItemListInput, issueQueryToListInput } from "../../item.js"
 import type { IssueLoad } from "../../issueLoad.js"
 import { type IssueView, initialIssueView, issueViewCacheKey, issueViewMode, issueViewRepository, issueViewToQuery } from "../../issueViews.js"
 import { CacheService } from "../../services/CacheService.js"
@@ -30,8 +30,6 @@ const emptyIssueLoad = (view: IssueView): IssueLoad => ({
 // Mirrors `queueLoadCacheAtom` for PRs. Lets us paint the cached list before
 // the network request resolves.
 export const issueQueueLoadCacheAtom = Atom.make<Partial<Record<string, IssueLoad>>>({}).pipe(Atom.keepAlive)
-
-const issueCacheViewerFor = (view: IssueView, username: string | null): string | null => (view._tag === "Repository" ? "anonymous" : username)
 
 // The `(get)` parameter makes this atom reactive on the active issue view.
 // Using `get(activeIssueViewAtom)` (rather than `Atom.get(...)` as an Effect
@@ -108,6 +106,35 @@ export const selectedIssueAtom = Atom.make((get): IssueItem | null => {
 	if (issues.length === 0) return null
 	const index = Math.max(0, Math.min(get(selectedIssueIndexAtom), issues.length - 1))
 	return issues[index] ?? null
+})
+
+// Pagination — mirrors PR atoms in src/ui/pullRequests/atoms.ts.
+export const issueCacheViewerFor = (view: IssueView, username: string | null): string | null => (view._tag === "Repository" ? "anonymous" : username)
+
+export const listIssuePageAtom = githubRuntime.fn<ItemListInput<"issue">>()((input) => GitHubService.use((github) => github.listIssuePage(input)))
+
+export const writeIssueQueueAtom = githubRuntime.fn<{ readonly viewer: string; readonly load: IssueLoad }>()(({ viewer, load }) =>
+	CacheService.use((cache) => cache.writeIssueQueue(viewer, load)),
+)
+
+export const loadedIssueCountAtom = Atom.make((get) => get(issueLoadAtom)?.data.length ?? 0)
+
+export const hasMoreIssuesAtom = Atom.make((get) => {
+	const load = get(issueLoadAtom)
+	// Reuse the PR fetch limit until issues get their own knob — the cap is
+	// the same shape (don't blow past N items per queue).
+	const PR_FETCH_LIMIT = 500
+	return Boolean(load?.hasNextPage && load.data.length < PR_FETCH_LIMIT)
+})
+
+export const loadingMoreIssueKeyAtom = Atom.make<string | null>(null).pipe(Atom.keepAlive)
+
+// Selection rests on the load-more pseudo-row when the index is one past the
+// last issue. Mirrors `loadMoreRowSelectedAtom` for PRs.
+export const loadMoreIssueRowSelectedAtom = Atom.make((get) => {
+	const issues = get(issueListAtom)
+	const hasMore = get(hasMoreIssuesAtom)
+	return hasMore && issues.length > 0 && get(selectedIssueIndexAtom) === issues.length
 })
 
 export const addIssueLabelAtom = githubRuntime.fn<{ readonly repository: string; readonly number: number; readonly label: string }>()((input) =>

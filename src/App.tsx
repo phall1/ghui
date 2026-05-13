@@ -6,6 +6,7 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "r
 import type { AppCommand } from "./commands.js"
 import { type IssueItem, type LoadStatus } from "./domain.js"
 import { errorMessage } from "./errors.js"
+import { issueViewCacheKey } from "./issueViews.js"
 import { parseRepositoryInput, viewCacheKey } from "./pullRequestViews.js"
 
 import { colors } from "./ui/colors.js"
@@ -18,7 +19,16 @@ import { computeHeaderDerivations, groupIndexAt } from "./workspace/headerDeriva
 import { buildRepositoryItems } from "./workspace/repositoryItems.js"
 import { useWorkspacePreferencesPersistence } from "./workspace/useWorkspacePreferencesPersistence.js"
 import { pullRequestCommentsAtom, pullRequestCommentsLoadedAtom } from "./ui/comments/atoms.js"
-import { activeIssueViewAtom, issueLoadAtom, issuesAtom, issueViewRepository } from "./ui/issues/atoms.js"
+import {
+	activeIssueViewAtom,
+	hasMoreIssuesAtom,
+	issueLoadAtom,
+	issueQueueLoadCacheAtom,
+	issuesAtom,
+	issueViewRepository,
+	loadedIssueCountAtom,
+	loadMoreIssueRowSelectedAtom,
+} from "./ui/issues/atoms.js"
 import { filterDraftAtom, filterModeAtom, filterQueryAtom } from "./ui/filter/atoms.js"
 import { repositoryFilterScore } from "./ui/filter/scoring.js"
 import { selectedIndexAtom, selectedIssueIndexAtom } from "./ui/listSelection/atoms.js"
@@ -54,6 +64,7 @@ import {
 import { useFocusReturnRefresh } from "./hooks/useFocusReturnRefresh.js"
 import { useGitHubActions } from "./hooks/useGitHubActions.js"
 import { useImperativeActions } from "./hooks/useImperativeActions.js"
+import { useIssuesLoadMore } from "./hooks/useIssuesLoadMore.js"
 import { useScrollRefs } from "./hooks/useScrollRefs.js"
 import { useIssueListDerivations } from "./hooks/useIssueListDerivations.js"
 import { useCommentsLoader } from "./hooks/useCommentsLoader.js"
@@ -279,6 +290,10 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 	const setRepoRollup = useAtomSet(repoRollupAtom)
 	const issuesResult = useAtomValue(issuesAtom)
 	const issueLoad = useAtomValue(issueLoadAtom)
+	const hasMoreIssues = useAtomValue(hasMoreIssuesAtom)
+	const loadedIssueCount = useAtomValue(loadedIssueCountAtom)
+	const loadMoreIssueRowSelected = useAtomValue(loadMoreIssueRowSelectedAtom)
+	const setIssueQueueLoadCache = useAtomSet(issueQueueLoadCacheAtom)
 	const [selectedIssueIndex, setSelectedIssueIndex] = useAtom(selectedIssueIndexAtom)
 	const pullRequests = useAtomValue(displayedPullRequestsAtom)
 	const pullRequestStatus = useAtomValue(pullRequestStatusAtom)
@@ -309,6 +324,7 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 		selectedRepository,
 		issuesResult,
 		selectedIssueIndex,
+		loadMoreIssueRowSelected,
 	})
 	pullRequestStatusRef.current = pullRequestStatus
 
@@ -353,6 +369,17 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 		refreshGenerationRef,
 		flashNotice,
 		setQueueLoadCache,
+	})
+	const currentIssueCacheKey = issueViewCacheKey(activeIssueView)
+	const { loadMoreIssues, isLoadingMoreIssues } = useIssuesLoadMore({
+		activeIssueView,
+		currentIssueCacheKey,
+		issueLoad,
+		hasMoreIssues,
+		username,
+		refreshGenerationRef,
+		flashNotice,
+		setIssueQueueLoadCache,
 	})
 	const pullRequestListRows = useMemo(
 		() =>
@@ -568,7 +595,8 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 
 	const loadMoreSlotAvailable = visibleHasMorePullRequests && visiblePullRequests.length > 0
 	useClampedIndex(visiblePullRequests.length + (loadMoreSlotAvailable ? 1 : 0), setSelectedIndex)
-	useClampedIndex(issues.length, setSelectedIssueIndex)
+	const issueLoadMoreSlotAvailable = hasMoreIssues && issues.length > 0
+	useClampedIndex(issues.length + (issueLoadMoreSlotAvailable ? 1 : 0), setSelectedIssueIndex)
 	useClampedIndex(repositoryItems.length, setSelectedRepositoryIndex)
 
 	useWorkspacePreferencesPersistence({
@@ -1008,6 +1036,7 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 			selectedIndex,
 			visibleHasMorePullRequests,
 			loadMoreSlotAvailable,
+			issueLoadMoreSlotAvailable,
 			groupStarts,
 			getCurrentGroupIndex,
 			setSelectedIndex,
@@ -1118,6 +1147,7 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 				openSelection: () => {
 					if (activeWorkspaceSurface === "repos") openSelectedRepository()
 					else if (activeWorkspaceSurface === "pullRequests" && loadMoreRowSelected) loadMorePullRequests()
+					else if (activeWorkspaceSurface === "issues" && loadMoreIssueRowSelected) loadMoreIssues()
 					else runCommandById("detail.open")
 				},
 				openRepositoryPicker,
@@ -1228,6 +1258,14 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 		onSelectLoadMore: () => {
 			setSelectedIndex(visiblePullRequests.length)
 			loadMorePullRequests()
+		},
+		hasMoreIssues,
+		isLoadingMoreIssues,
+		loadedIssueCount,
+		loadMoreIssueRowSelected,
+		onSelectLoadMoreIssues: () => {
+			setSelectedIssueIndex(issues.length)
+			loadMoreIssues()
 		},
 	})
 	const { showPaneSplit, workspaceTabCounts, filterPlaceholder, workspaceTopDividerJunctions, workspaceBottomDividerJunctions } = derivations

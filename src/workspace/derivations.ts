@@ -57,6 +57,11 @@ export interface WorkspaceDerivationsInput {
 	readonly setSelectedRepositoryIndex: (index: number) => void
 	readonly loadMoreSelected: boolean
 	readonly onSelectLoadMore: () => void
+	readonly hasMoreIssues: boolean
+	readonly isLoadingMoreIssues: boolean
+	readonly loadedIssueCount: number
+	readonly loadMoreIssueRowSelected: boolean
+	readonly onSelectLoadMoreIssues: () => void
 }
 
 export interface WorkspaceDerivations {
@@ -89,7 +94,7 @@ export interface WorkspaceDerivations {
 	readonly narrowIssueListNeedsScroll: boolean
 	readonly repoListNeedsScroll: boolean
 	readonly narrowRepoListNeedsScroll: boolean
-	readonly workspaceTabCounts: { readonly repos: number; readonly pullRequests: number | string; readonly issues: number }
+	readonly workspaceTabCounts: { readonly repos: number; readonly pullRequests: number | string; readonly issues: number | string }
 	readonly filterPlaceholder: string
 	readonly workspaceTabJunctions: readonly number[]
 	readonly workspaceTopDividerJunctions: readonly { readonly at: number; readonly char: string }[]
@@ -143,6 +148,11 @@ export const computeWorkspaceDerivations = (input: WorkspaceDerivationsInput): W
 		setSelectedRepositoryIndex,
 		loadMoreSelected,
 		onSelectLoadMore,
+		hasMoreIssues,
+		isLoadingMoreIssues,
+		loadedIssueCount,
+		loadMoreIssueRowSelected,
+		onSelectLoadMoreIssues,
 	} = input
 	void _leftPaneWidth
 
@@ -205,6 +215,12 @@ export const computeWorkspaceDerivations = (input: WorkspaceDerivationsInput): W
 		showFilterBar: false,
 		isFilterEditing: filterMode,
 		onSelectIssue: setSelectedIssueIndex,
+		hasMore: hasMoreIssues,
+		isLoadingMore: isLoadingMoreIssues,
+		loadedCount: loadedIssueCount,
+		loadingIndicator,
+		loadMoreSelected: loadMoreIssueRowSelected,
+		onSelectLoadMore: onSelectLoadMoreIssues,
 	} as const
 	const repoListProps = {
 		repositories: repositoryItems,
@@ -222,7 +238,8 @@ export const computeWorkspaceDerivations = (input: WorkspaceDerivationsInput): W
 	const issueFilterBarHeight = issueActiveFilterLabel ? ACTIVE_FILTER_BAR_HEIGHT : 0
 	const wideIssueRowsHeight = Math.max(1, wideBodyHeight - issueFilterBarHeight)
 	const narrowIssueRowsHeight = Math.max(1, narrowIssueListHeight - issueFilterBarHeight)
-	const issueVisualLineCount = issueListVisualLineCount(issues, showIssueRepositoryGroups)
+	const issueLoadMoreSlotAvailable = hasMoreIssues && issues.length > 0
+	const issueVisualLineCount = issueListVisualLineCount(issues, showIssueRepositoryGroups, issueLoadMoreSlotAvailable)
 	const issueListNeedsScroll = issuesStatus === "ready" && issueVisualLineCount > wideIssueRowsHeight
 	const narrowIssueListNeedsScroll = issuesStatus === "ready" && issueVisualLineCount > narrowIssueRowsHeight
 	const repoListNeedsScroll = repositoryItems.length > wideBodyHeight
@@ -230,7 +247,7 @@ export const computeWorkspaceDerivations = (input: WorkspaceDerivationsInput): W
 	const workspaceTabCounts = {
 		repos: repositoryItems.length,
 		pullRequests: hasMorePullRequests ? `${visiblePullRequests.length}+` : visiblePullRequests.length,
-		issues: issues.length,
+		issues: hasMoreIssues ? `${issues.length}+` : issues.length,
 	}
 	const filterPlaceholder = activeWorkspaceSurface === "pullRequests" ? "filter pull requests" : activeWorkspaceSurface === "issues" ? "filter issues" : "filter repositories"
 	const workspaceTabJunctions = workspaceTabSeparatorColumns(workspaceTabCounts, workspaceTabSurfaces)

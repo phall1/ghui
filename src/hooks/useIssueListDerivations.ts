@@ -17,6 +17,7 @@ export interface UseIssueListDerivationsInput {
 	readonly selectedRepository: string | null
 	readonly issuesResult: IssuesResult
 	readonly selectedIssueIndex: number
+	readonly loadMoreIssueRowSelected: boolean
 }
 
 export interface IssueListDerivations {
@@ -48,6 +49,7 @@ export const useIssueListDerivations = ({
 	selectedRepository,
 	issuesResult,
 	selectedIssueIndex,
+	loadMoreIssueRowSelected,
 }: UseIssueListDerivationsInput): IssueListDerivations => {
 	const allIssues = useMemo(() => {
 		const seen = new Set<string>()
@@ -70,7 +72,7 @@ export const useIssueListDerivations = ({
 	const issuesStatus: LoadStatus = selectedRepository === null ? "ready" : issuesResult.waiting ? "loading" : AsyncResult.isFailure(issuesResult) ? "error" : "ready"
 	const issuesError = AsyncResult.isFailure(issuesResult) ? errorMessage(Cause.squash(issuesResult.cause)) : null
 	const selectedIssue = issues[Math.max(0, Math.min(selectedIssueIndex, issues.length - 1))] ?? null
-	const selectedIssueRowIndex = issueListRowIndex(issues, selectedIssueIndex, showIssueRepositoryGroups)
+	const selectedIssueRowIndex = issueListRowIndex(issues, selectedIssueIndex, showIssueRepositoryGroups, loadMoreIssueRowSelected)
 
 	return { allIssues, issues, issuesStatus, issuesError, selectedIssue, selectedIssueRowIndex }
 }
