@@ -1,4 +1,3 @@
-import { type ScrollBoxRenderable } from "@opentui/core"
 import { RegistryContext, useAtom, useAtomRefresh, useAtomSet, useAtomValue } from "@effect/atom-react"
 import { useRenderer, useTerminalDimensions } from "@opentui/react"
 import { Cause } from "effect"
@@ -54,6 +53,7 @@ import {
 import { useFocusReturnRefresh } from "./hooks/useFocusReturnRefresh.js"
 import { useGitHubActions } from "./hooks/useGitHubActions.js"
 import { useImperativeActions } from "./hooks/useImperativeActions.js"
+import { useScrollRefs } from "./hooks/useScrollRefs.js"
 import { useIssueListDerivations } from "./hooks/useIssueListDerivations.js"
 import { useCommentsLoader } from "./hooks/useCommentsLoader.js"
 import { useCommentsViewActions } from "./hooks/useCommentsViewActions.js"
@@ -244,17 +244,16 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 	const pullRequestStatusRef = useRef<LoadStatus>("loading")
 	const refreshPullRequestsRef = useRef<(message?: string, options?: { readonly resetTransientState?: boolean }) => void>(() => {})
 	const maybeRefreshPullRequestsRef = useRef<(minimumAgeMs: number) => void>(() => {})
-	const detailScrollRef = useRef<ScrollBoxRenderable | null>(null)
-	const detailPreviewScrollRef = useRef<ScrollBoxRenderable | null>(null)
-	const diffScrollRef = useRef<ScrollBoxRenderable | null>(null)
-	const prListScrollRef = useRef<ScrollBoxRenderable | null>(null)
-	const issueListScrollRef = useRef<ScrollBoxRenderable | null>(null)
-	// Persisted scrollTop per surface so switching tabs preserves list position.
-	// Detail preview intentionally resets per selection — persisting it would
-	// surprise users who expect to see new content from the top.
-	const prListScrollPersistedRef = useRef(0)
-	const issueListScrollPersistedRef = useRef(0)
-	const suppressNextDiffCommentScrollRef = useRef(false)
+	const {
+		detailScrollRef,
+		detailPreviewScrollRef,
+		diffScrollRef,
+		prListScrollRef,
+		issueListScrollRef,
+		prListScrollPersistedRef,
+		issueListScrollPersistedRef,
+		suppressNextDiffCommentScrollRef,
+	} = useScrollRefs()
 
 	const flashNotice = useFlashNotice()
 
