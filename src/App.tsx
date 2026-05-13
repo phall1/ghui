@@ -83,6 +83,7 @@ import {
 import { useFocusReturnRefresh } from "./hooks/useFocusReturnRefresh.js"
 import { useCommentsLoader } from "./hooks/useCommentsLoader.js"
 import { useDiffLoader } from "./hooks/useDiffLoader.js"
+import { useLinkNavigation } from "./hooks/useLinkNavigation.js"
 import { useWorkspaceNavigation } from "./hooks/useWorkspaceNavigation.js"
 import { useDiffSelectionSync } from "./hooks/useDiffSelectionSync.js"
 import { useLoadMoreOnScroll } from "./hooks/useLoadMoreOnScroll.js"
@@ -165,7 +166,6 @@ import { WorkspaceHeader } from "./surfaces/WorkspaceHeader.js"
 import { WorkspaceModals } from "./surfaces/WorkspaceModals.js"
 import { WorkspaceTabs } from "./ui/WorkspaceTabs.js"
 import { issueListRowIndex, orderIssuesForDisplay } from "./ui/IssueList.js"
-import { parseIssueReferenceUrl } from "./ui/inlineSegments.js"
 import { singleLineText } from "./ui/singleLineInput.js"
 import { SPINNER_FRAMES } from "./ui/spinner.js"
 import { useClampedIndex } from "./ui/useClampedIndex.js"
@@ -1142,56 +1142,22 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 		removeIssueLabel,
 	})
 
-	const navigateIssueReference = (repository: string, number: number) => {
-		const issueIndex = issues.findIndex((issue) => issue.repository === repository && issue.number === number)
-		if (issueIndex >= 0) {
-			setActiveWorkspaceSurface("issues")
-			setSelectedIssueIndex(issueIndex)
-			setDetailFullView(false)
-			flashNotice(`Opened ${repository}#${number}`)
-			return true
-		}
-
-		const unfilteredIssueIndex = allIssues.findIndex((issue) => issue.repository === repository && issue.number === number)
-		if (unfilteredIssueIndex >= 0) {
-			setFilterQuery("")
-			setFilterDraft("")
-			setFilterMode(false)
-			setActiveWorkspaceSurface("issues")
-			setSelectedIssueIndex(unfilteredIssueIndex)
-			setDetailFullView(false)
-			flashNotice(`Opened ${repository}#${number}`)
-			return true
-		}
-
-		const pullRequest = pullRequests.find((item) => item.repository === repository && item.number === number)
-		if (pullRequest) {
-			setActiveWorkspaceSurface("pullRequests")
-			selectPullRequestByUrl(pullRequest.url)
-			setDetailFullView(false)
-			flashNotice(`Opened ${repository}#${number}`)
-			return true
-		}
-
-		if (selectedRepository !== repository) {
-			switchViewTo({ _tag: "Repository", repository })
-			setActiveWorkspaceSurface("issues")
-			setSelectedIssueIndex(0)
-			flashNotice(`Opened ${repository}; #${number} will appear if it is loaded`)
-			return true
-		}
-
-		return false
-	}
-
-	const openInlineLink = (url: string) => {
-		const issueReference = parseIssueReferenceUrl(url)
-		const targetUrl = issueReference ? `https://github.com/${issueReference.repository}/issues/${issueReference.number}` : url
-		if (issueReference && navigateIssueReference(issueReference.repository, issueReference.number)) return
-		void openUrl(targetUrl)
-			.then(() => flashNotice(`Opened ${targetUrl}`))
-			.catch((error) => flashNotice(errorMessage(error)))
-	}
+	const { openInlineLink } = useLinkNavigation({
+		issues,
+		allIssues,
+		pullRequests,
+		selectedRepository,
+		setActiveWorkspaceSurface,
+		setSelectedIssueIndex,
+		setDetailFullView,
+		setFilterQuery,
+		setFilterDraft,
+		setFilterMode,
+		selectPullRequestByUrl,
+		switchViewTo,
+		openUrl,
+		flashNotice,
+	})
 
 	const { openThemeModal, closeThemeModal, moveThemeSelection, updateThemeQuery, toggleThemeTone, toggleThemeMode, editThemeQuery } = themeModalActions
 
