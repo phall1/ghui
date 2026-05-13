@@ -8,7 +8,7 @@ import { useRenderer, useTerminalDimensions } from "@opentui/react"
 import { Cause } from "effect"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
-import { clampCommandIndex, type AppCommand } from "./commands.js"
+import type { AppCommand } from "./commands.js"
 import { type IssueItem, type LoadStatus, type PullRequestItem, type SubmitPullRequestReviewInput } from "./domain.js"
 import { errorMessage } from "./errors.js"
 import { parseRepositoryInput, viewCacheKey } from "./pullRequestViews.js"
@@ -83,6 +83,7 @@ import { useDiffLoader } from "./hooks/useDiffLoader.js"
 import { useLinkNavigation } from "./hooks/useLinkNavigation.js"
 import { useCommandRegistry } from "./hooks/useCommandRegistry.js"
 import { useListSelectionStepping } from "./hooks/useListSelectionStepping.js"
+import { useModalSelectionMovers } from "./hooks/useModalSelectionMovers.js"
 import { usePasteRouter } from "./hooks/usePasteRouter.js"
 import { useWorkspaceNavigation } from "./hooks/useWorkspaceNavigation.js"
 import { useDiffSelectionSync } from "./hooks/useDiffSelectionSync.js"
@@ -124,7 +125,6 @@ import { LoadingLogoPane } from "./ui/LoadingLogo.js"
 import { Divider, fitCell, TextLine } from "./ui/primitives.js"
 import {
 	filterChangedFiles,
-	filterLabels,
 	initialChangedFilesModalState,
 	initialCloseModalState,
 	initialCommandPaletteState,
@@ -194,7 +194,6 @@ interface AppProps {
 const FOCUS_RETURN_REFRESH_MIN_MS = 60_000
 const FOCUSED_IDLE_REFRESH_MS = 5 * 60_000
 const AUTO_REFRESH_JITTER_MS = 10_000
-const wrapIndex = (index: number, length: number) => (length === 0 ? 0 : ((index % length) + length) % length)
 
 const reviewStatusAfterSubmit = {
 	COMMENT: null,
@@ -1252,36 +1251,17 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 	})
 
 	// === Helpers used by the keymap layers ===
-	const scrollCommentThread = (delta: number) =>
-		setCommentThreadModal((current) => ({
-			...current,
-			scrollOffset: Math.max(0, current.scrollOffset + delta),
-		}))
-	const moveLabelSelection = (delta: -1 | 1) =>
-		setLabelModal((current) => {
-			const filtered = filterLabels(labelModal.availableLabels, labelModal.query)
-			const selectedIndex = wrapIndex(current.selectedIndex + delta, filtered.length)
-			return selectedIndex === current.selectedIndex ? current : { ...current, selectedIndex }
-		})
-	const moveChangedFileSelection = (delta: -1 | 1) =>
-		setChangedFilesModal((current) => {
-			const selectedIndex = wrapIndex(current.selectedIndex + delta, changedFileResults.length)
-			return selectedIndex === current.selectedIndex ? current : { ...current, selectedIndex }
-		})
-	const moveSubmitReviewActionSelection = (delta: -1 | 1) =>
-		setSubmitReviewModal((current) => {
-			const selectedIndex = wrapIndex(current.selectedIndex + delta, submitReviewOptions.length)
-			return { ...current, selectedIndex, error: null }
-		})
-	const moveCommandPaletteSelection = (delta: -1 | 1) =>
-		setCommandPalette((current) => {
-			const selectedIndex = wrapIndex(current.selectedIndex + delta, commandPaletteCommands.length)
-			return selectedIndex === current.selectedIndex ? current : { ...current, selectedIndex }
-		})
-	const selectCommandPaletteIndex = (index: number) =>
-		setCommandPalette((current) => {
-			const selectedIndex = clampCommandIndex(index, commandPaletteCommands)
-			return selectedIndex === current.selectedIndex ? current : { ...current, selectedIndex }
+	const { scrollCommentThread, moveLabelSelection, moveChangedFileSelection, moveSubmitReviewActionSelection, moveCommandPaletteSelection, selectCommandPaletteIndex } =
+		useModalSelectionMovers({
+			labelModal,
+			commandPaletteCommands,
+			changedFileResultsLength: changedFileResults.length,
+			submitReviewOptionsLength: submitReviewOptions.length,
+			setCommentThreadModal,
+			setLabelModal,
+			setChangedFilesModal,
+			setSubmitReviewModal,
+			setCommandPalette,
 		})
 	const runCommandPaletteCommand = (command: AppCommand) => {
 		runCommand(command, { notifyDisabled: true, closePalette: true })
