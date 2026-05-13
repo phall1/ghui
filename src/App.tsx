@@ -17,7 +17,6 @@ import { type IssueItem, type LoadStatus, type PullRequestItem, type PullRequest
 import { errorMessage } from "./errors.js"
 import { nextView, parseRepositoryInput, type PullRequestView, viewCacheKey, viewEquals } from "./pullRequestViews.js"
 
-import { ACTIVE_FILTER_BAR_HEIGHT } from "./ui/ActiveFilterBar.js"
 import { colors } from "./ui/colors.js"
 import {
 	favoriteRepositoriesAtom,
@@ -31,6 +30,7 @@ import {
 } from "./workspace/atoms.js"
 import { computeLayout } from "./workspace/layout.js"
 import { computeModalLayouts } from "./workspace/modalLayouts.js"
+import { computeWorkspaceDerivations } from "./workspace/derivations.js"
 import { useWorkspacePreferencesPersistence } from "./workspace/useWorkspacePreferencesPersistence.js"
 import {
 	commentsViewActiveAtom,
@@ -132,7 +132,7 @@ import {
 	splitPatchFiles,
 	type StackedDiffCommentAnchor,
 } from "./ui/diff.js"
-import { getDetailHeaderHeight, getDetailJunctionRows, getScrollableDetailBodyHeight, type DetailCommentsStatus, type DetailPlaceholderContent } from "./ui/DetailsPane.js"
+import { type DetailCommentsStatus, type DetailPlaceholderContent } from "./ui/DetailsPane.js"
 import { FooterHints, RetryProgress } from "./ui/FooterHints.js"
 import { LoadingLogoPane } from "./ui/LoadingLogo.js"
 import { Divider, fitCell, PlainLine, TextLine } from "./ui/primitives.js"
@@ -170,15 +170,15 @@ import {
 	type ThemeModalState,
 } from "./ui/modals.js"
 import { commentsViewRowCount, orderCommentsForDisplay } from "./ui/CommentsPane.js"
-import { buildPullRequestListRows, pullRequestListRowIndex, pullRequestListVisualLineCount } from "./ui/PullRequestList.js"
+import { buildPullRequestListRows, pullRequestListRowIndex } from "./ui/PullRequestList.js"
 import { type RepositoryListItem } from "./ui/RepoList.js"
 import { IssueSurface } from "./surfaces/IssueSurface.js"
 import { PullRequestSurface } from "./surfaces/PullRequestSurface.js"
 import { RepoSurface } from "./surfaces/RepoSurface.js"
 import { WorkspaceHeader } from "./surfaces/WorkspaceHeader.js"
 import { WorkspaceModals } from "./surfaces/WorkspaceModals.js"
-import { WorkspaceTabs, workspaceTabSeparatorColumns } from "./ui/WorkspaceTabs.js"
-import { getIssueDetailJunctionRows, issueListRowIndex, issueListVisualLineCount, orderIssuesForDisplay } from "./ui/IssueList.js"
+import { WorkspaceTabs } from "./ui/WorkspaceTabs.js"
+import { issueListRowIndex, orderIssuesForDisplay } from "./ui/IssueList.js"
 import { parseIssueReferenceUrl } from "./ui/inlineSegments.js"
 import { singleLineText } from "./ui/singleLineInput.js"
 import { SPINNER_FRAMES } from "./ui/spinner.js"
@@ -1916,96 +1916,83 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 		)
 	}
 
-	const fullscreenDetailHeaderHeight = getDetailHeaderHeight(selectedPullRequest, contentWidth, isWideLayout, selectedComments, selectedCommentsStatus)
-	const fullscreenDetailBodyViewportHeight = Math.max(1, wideBodyHeight - fullscreenDetailHeaderHeight)
-	const fullscreenDetailBodyHeight = getScrollableDetailBodyHeight(selectedPullRequest, fullscreenContentWidth)
-	const fullscreenDetailBodyScrollable = fullscreenDetailBodyHeight > fullscreenDetailBodyViewportHeight
-	const wideDetailHeaderHeight = getDetailHeaderHeight(selectedPullRequest, rightPaneWidth, true, selectedComments, selectedCommentsStatus)
-	const wideDetailBodyViewportHeight = Math.max(1, wideBodyHeight - wideDetailHeaderHeight)
-	const wideDetailBodyHeight = getScrollableDetailBodyHeight(selectedPullRequest, rightContentWidth)
-	const wideDetailBodyScrollable = wideDetailBodyHeight > wideDetailBodyViewportHeight
-	const narrowPullRequestListHeight = Math.max(1, Math.ceil((wideBodyHeight - 1) / 2))
-	const narrowDetailsPaneHeight = Math.max(1, wideBodyHeight - narrowPullRequestListHeight - 1)
-	const narrowRepoListHeight = narrowPullRequestListHeight
-	const narrowRepoDetailHeight = narrowDetailsPaneHeight
-	const narrowIssueListHeight = narrowPullRequestListHeight
-	const narrowIssueDetailHeight = narrowDetailsPaneHeight
-	const narrowPreviewHeaderHeight = getDetailHeaderHeight(selectedPullRequest, contentWidth, false, selectedComments, selectedCommentsStatus)
-	const narrowPreviewBodyHeight = Math.max(1, narrowDetailsPaneHeight - narrowPreviewHeaderHeight)
-	const narrowPreviewBodyScrollable = getScrollableDetailBodyHeight(selectedPullRequest, fullscreenContentWidth) > narrowPreviewBodyHeight
-	const pullRequestFilterBarHeight = pullRequestActiveFilterLabel ? ACTIVE_FILTER_BAR_HEIGHT : 0
-	const widePullRequestListHeight = Math.max(1, wideBodyHeight - pullRequestFilterBarHeight)
-	const narrowPullRequestRowsHeight = Math.max(1, narrowPullRequestListHeight - pullRequestFilterBarHeight)
-	const pullRequestVisualLineCount = pullRequestListVisualLineCount(pullRequestListRows)
-	const widePullRequestListNeedsScroll = pullRequestStatus === "ready" && pullRequestVisualLineCount > widePullRequestListHeight
-	const narrowPullRequestListNeedsScroll = pullRequestStatus === "ready" && pullRequestVisualLineCount > narrowPullRequestRowsHeight
-	const detailJunctions = isSelectedPullRequestDetailLoading
-		? []
-		: getDetailJunctionRows({
-				pullRequest: selectedPullRequest,
-				paneWidth: rightPaneWidth,
-				showChecks: true,
-				comments: selectedComments,
-				commentsStatus: selectedCommentsStatus,
-			})
-
-	const prListProps = {
-		groups: visibleGroups,
-		selectedUrl: selectedPullRequest?.url ?? null,
-		status: pullRequestStatus,
-		error: pullRequestError,
-		filterText: visibleFilterText,
-		loadedCount: loadedPullRequestCount,
-		hasMore: hasMorePullRequests,
-		isLoadingMore: isLoadingMorePullRequests,
-		loadingIndicator,
-		onSelectPullRequest: selectPullRequestByUrl,
-		showTitle: false,
-		showRepositoryGroups: selectedRepository === null,
-	} as const
-	const issueListProps = {
+	const derivations = computeWorkspaceDerivations({
+		contentWidth,
+		isWideLayout,
+		leftPaneWidth,
+		rightPaneWidth,
+		rightContentWidth,
+		fullscreenContentWidth,
+		wideBodyHeight,
+		dividerJunctionAt,
+		showWorkspaceTabs,
+		detailFullView,
+		diffFullView,
+		commentsViewActive,
+		activeWorkspaceSurface,
+		workspaceTabSurfaces,
+		selectedPullRequest,
+		selectedIssue,
+		selectedRepository,
+		selectedComments,
+		selectedCommentsStatus,
+		isSelectedPullRequestDetailLoading,
+		pullRequestStatus,
+		pullRequestError,
+		pullRequestActiveFilterLabel,
+		issueActiveFilterLabel,
+		pullRequestListRows,
+		visibleGroups,
+		visiblePullRequests,
 		issues,
-		selectedIndex: selectedIssueIndex,
-		status: issuesStatus,
-		error: issuesError,
-		repository: selectedRepository,
-		filterText: visibleFilterText,
-		showFilterBar: false,
-		isFilterEditing: filterMode,
-		onSelectIssue: setSelectedIssueIndex,
-	} as const
-	const repoListProps = {
-		repositories: repositoryItems,
-		selectedIndex: selectedRepositoryIndex,
-		filterText: visibleFilterText,
-		showFilterBar: false,
-		isFilterEditing: filterMode,
-		onSelectRepository: setSelectedRepositoryIndex,
-	} as const
-	const showWideSplit = activeWorkspaceSurface === "pullRequests" && isWideLayout && !detailFullView && !diffFullView && !commentsViewActive
-	const showRepoSplit = activeWorkspaceSurface === "repos" && isWideLayout && !detailFullView && !diffFullView && !commentsViewActive
-	const showIssueSplit = activeWorkspaceSurface === "issues" && isWideLayout && !detailFullView && !diffFullView && !commentsViewActive
-	const issueJunctions = showIssueSplit ? getIssueDetailJunctionRows(selectedIssue, rightPaneWidth) : []
-	const showPaneSplit = showWideSplit || showRepoSplit || showIssueSplit
-	const issueFilterBarHeight = issueActiveFilterLabel ? ACTIVE_FILTER_BAR_HEIGHT : 0
-	const wideIssueRowsHeight = Math.max(1, wideBodyHeight - issueFilterBarHeight)
-	const narrowIssueRowsHeight = Math.max(1, narrowIssueListHeight - issueFilterBarHeight)
-	const issueVisualLineCount = issueListVisualLineCount(issues, showIssueRepositoryGroups)
-	const issueListNeedsScroll = issuesStatus === "ready" && issueVisualLineCount > wideIssueRowsHeight
-	const narrowIssueListNeedsScroll = issuesStatus === "ready" && issueVisualLineCount > narrowIssueRowsHeight
-	const repoListNeedsScroll = repositoryItems.length > wideBodyHeight
-	const narrowRepoListNeedsScroll = repositoryItems.length > narrowRepoListHeight
-	const workspaceTabCounts = {
-		repos: repositoryItems.length,
-		pullRequests: hasMorePullRequests ? `${visiblePullRequests.length}+` : visiblePullRequests.length,
-		issues: issues.length,
-	}
-	const filterPlaceholder = activeWorkspaceSurface === "pullRequests" ? "filter pull requests" : activeWorkspaceSurface === "issues" ? "filter issues" : "filter repositories"
-	const workspaceTabJunctions = workspaceTabSeparatorColumns(workspaceTabCounts, workspaceTabSurfaces)
-	const workspaceTopDividerJunctions = showWorkspaceTabs ? workspaceTabJunctions.map((at) => ({ at, char: "┬" })) : []
-	const workspaceBottomDividerJunctions = showWorkspaceTabs
-		? [...workspaceTabJunctions.map((at) => ({ at, char: "┴" })), ...(showPaneSplit ? [{ at: dividerJunctionAt, char: "┬" }] : [])]
-		: []
+		showIssueRepositoryGroups,
+		issuesStatus,
+		issuesError,
+		repositoryItems,
+		selectedIssueIndex,
+		selectedRepositoryIndex,
+		hasMorePullRequests,
+		isLoadingMorePullRequests,
+		loadedPullRequestCount,
+		loadingIndicator,
+		filterMode,
+		visibleFilterText,
+		selectPullRequestByUrl,
+		setSelectedIssueIndex,
+		setSelectedRepositoryIndex,
+	})
+	const {
+		fullscreenDetailHeaderHeight,
+		fullscreenDetailBodyScrollable,
+		wideDetailHeaderHeight,
+		wideDetailBodyScrollable,
+		narrowPullRequestListHeight,
+		narrowDetailsPaneHeight,
+		narrowRepoListHeight,
+		narrowRepoDetailHeight,
+		narrowIssueListHeight,
+		narrowIssueDetailHeight,
+		narrowPreviewBodyHeight,
+		narrowPreviewBodyScrollable,
+		widePullRequestListHeight,
+		narrowPullRequestRowsHeight,
+		widePullRequestListNeedsScroll,
+		narrowPullRequestListNeedsScroll,
+		detailJunctions,
+		prListProps,
+		issueListProps,
+		repoListProps,
+		showPaneSplit,
+		issueJunctions,
+		issueListNeedsScroll,
+		narrowIssueListNeedsScroll,
+		repoListNeedsScroll,
+		narrowRepoListNeedsScroll,
+		workspaceTabCounts,
+		filterPlaceholder,
+		workspaceTopDividerJunctions,
+		workspaceBottomDividerJunctions,
+	} = derivations
 
 	const modalLayouts = computeModalLayouts({
 		contentWidth,
