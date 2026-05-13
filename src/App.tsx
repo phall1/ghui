@@ -5,15 +5,14 @@ import { appKeymap, type AppCtx } from "./keymap/all.js"
 import { buildAppCtx } from "./keymap/contexts/appCtx.js"
 import { useOpenTuiSubscribe } from "./keyboard/opentuiAdapter.js"
 import { useRenderer, useTerminalDimensions } from "@opentui/react"
-import { Cause, Effect } from "effect"
+import { Cause } from "effect"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
-import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry"
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 import type { AppCommand } from "./commands.js"
 import { clampCommandIndex, type CommandScope, commandEnabled, defineCommand, filterCommands, sortCommandsByActiveScope } from "./commands.js"
 import { commandSnapshotsAtom } from "./commands/atoms.js"
 import { dispatchCommandAtom } from "./commands/dispatch.js"
-import { type IssueItem, type LoadStatus, type PullRequestItem, type PullRequestReviewComment, type SubmitPullRequestReviewInput } from "./domain.js"
+import { type IssueItem, type LoadStatus, type PullRequestItem, type SubmitPullRequestReviewInput } from "./domain.js"
 import { errorMessage } from "./errors.js"
 import { nextView, parseRepositoryInput, type PullRequestView, viewCacheKey, viewEquals } from "./pullRequestViews.js"
 
@@ -66,7 +65,6 @@ import {
 	pullRequestDetailKey,
 	pullRequestLoadAtom,
 	pullRequestOverridesAtom,
-	pullRequestRevisionAtomKey,
 	pullRequestsAtom,
 	pullRequestStatusAtom,
 	queueLoadCacheAtom,
@@ -84,6 +82,7 @@ import {
 
 import { useFocusReturnRefresh } from "./hooks/useFocusReturnRefresh.js"
 import { useCommentsLoader } from "./hooks/useCommentsLoader.js"
+import { useDiffLoader } from "./hooks/useDiffLoader.js"
 import { useDiffSelectionSync } from "./hooks/useDiffSelectionSync.js"
 import { useLoadMoreOnScroll } from "./hooks/useLoadMoreOnScroll.js"
 import { useLoadMore } from "./ui/pullRequests/useLoadMore.js"
@@ -104,12 +103,11 @@ import {
 	diffWhitespaceModeAtom,
 	diffWrapModeAtom,
 	listPullRequestReviewCommentsAtom,
-	pullRequestDiffAtom,
 	pullRequestDiffCacheAtom,
 	selectedDiffKeyAtom,
 	selectedDiffStateAtom,
 } from "./ui/diff/atoms.js"
-import { diffCommentThreadMapKey, groupDiffCommentThreads, isLocalDiffComment } from "./ui/diff/comments.js"
+import { diffCommentThreadMapKey } from "./ui/diff/comments.js"
 import { useDiffLineColors } from "./ui/diff/useDiffLineColors.js"
 import { useDiffLocationPreservation } from "./ui/diff/useDiffLocationPreservation.js"
 import { useDiffPrefetch } from "./ui/diff/useDiffPrefetch.js"
@@ -117,7 +115,7 @@ import { themeIdAtom } from "./ui/theme/atoms.js"
 import { useThemeModal } from "./ui/theme/useThemeModal.js"
 import { useMergeFlow } from "./ui/merge/useMergeFlow.js"
 import { insertText, type CommentEditorValue } from "./ui/commentEditor.js"
-import { minimizeWhitespaceDiffFiles, PullRequestDiffState, pullRequestDiffKey, splitPatchFiles } from "./ui/diff.js"
+import { minimizeWhitespaceDiffFiles, pullRequestDiffKey } from "./ui/diff.js"
 import { type DetailCommentsStatus, type DetailPlaceholderContent } from "./ui/DetailsPane.js"
 import { RetryProgress } from "./ui/FooterHints.js"
 import { LoadingLogoPane } from "./ui/LoadingLogo.js"
@@ -964,71 +962,14 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 	const isSelectedPullRequestDetailError = selectedPullRequest !== null && !selectedPullRequest.detailLoaded && selectedPullRequestDetailError !== null
 	const halfPage = Math.max(1, Math.floor(wideBodyHeight / 2))
 
-	const loadPullRequestReviewComments = (pullRequest: PullRequestItem, force = false) => {
-		const key = pullRequestDiffKey(pullRequest)
-		const previousLoadState = registry.get(diffCommentsLoadedAtom)[key]
-		if (!force && previousLoadState) return
-		setDiffCommentsLoaded((current) => ({ ...current, [key]: "loading" }))
-		void listPullRequestReviewComments({ repository: pullRequest.repository, number: pullRequest.number })
-			.then((comments) => {
-				setDiffCommentsLoaded((current) => ({ ...current, [key]: "ready" }))
-				setDiffCommentThreads((current) => {
-					const prefix = `${key}:`
-					const threads = groupDiffCommentThreads(pullRequest, comments)
-					const next: Record<string, readonly PullRequestReviewComment[]> = Object.fromEntries(Object.entries(current).filter(([threadKey]) => !threadKey.startsWith(prefix)))
-
-					for (const [threadKey, threadComments] of Object.entries(current)) {
-						if (!threadKey.startsWith(prefix)) continue
-						const localComments = threadComments.filter(isLocalDiffComment)
-						if (localComments.length > 0) {
-							next[threadKey] = [...(threads[threadKey] ?? []), ...localComments]
-						}
-					}
-
-					for (const [threadKey, threadComments] of Object.entries(threads)) {
-						if (!next[threadKey]) next[threadKey] = threadComments
-					}
-
-					return next
-				})
-			})
-			.catch((error) => {
-				setDiffCommentsLoaded((current) => {
-					if (previousLoadState === "ready") return { ...current, [key]: previousLoadState }
-					const next = { ...current }
-					delete next[key]
-					return next
-				})
-				flashNotice(errorMessage(error))
-			})
-	}
-
-	const loadPullRequestDiff = (pullRequest: PullRequestItem, options: { readonly force?: boolean; readonly includeComments?: boolean } = {}) => {
-		const force = options.force ?? false
-		const includeComments = options.includeComments ?? false
-		const key = pullRequestDiffKey(pullRequest)
-		const existing = registry.get(pullRequestDiffCacheAtom)[key]
-		if (includeComments) loadPullRequestReviewComments(pullRequest, force)
-		if (!force && existing && (existing._tag === "Ready" || existing._tag === "Loading")) return
-
-		setPullRequestDiffCache((current) => ({ ...current, [key]: PullRequestDiffState.Loading() }))
-		const atom = pullRequestDiffAtom(pullRequestRevisionAtomKey(pullRequest))
-		if (force) registry.refresh(atom)
-		void Effect.runPromise(AtomRegistry.getResult(registry, atom, { suspendOnWaiting: true }))
-			.then((patch) => {
-				setPullRequestDiffCache((current) => ({
-					...current,
-					[key]: PullRequestDiffState.Ready({ patch, files: splitPatchFiles(patch) }),
-				}))
-			})
-			.catch((error) => {
-				setPullRequestDiffCache((current) => ({
-					...current,
-					[key]: PullRequestDiffState.Error({ error: errorMessage(error) }),
-				}))
-				flashNotice(errorMessage(error))
-			})
-	}
+	const { loadPullRequestDiff } = useDiffLoader({
+		registry,
+		setPullRequestDiffCache,
+		setDiffCommentsLoaded,
+		setDiffCommentThreads,
+		listPullRequestReviewComments,
+		flashNotice,
+	})
 
 	useDiffPrefetch({
 		pullRequest: selectedPullRequest,
