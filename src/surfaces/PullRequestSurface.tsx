@@ -9,7 +9,7 @@ import { CommentsPane, type OrderedComment } from "../ui/CommentsPane.js"
 import { DETAIL_BODY_SCROLL_LIMIT, DetailBody, DetailHeader, DetailPlaceholder, DetailsPane, type DetailCommentsStatus, type DetailPlaceholderContent } from "../ui/DetailsPane.js"
 import { DiffFilePanel } from "../ui/diff/DiffFilePanel.js"
 import { SplitPane } from "../ui/paneLayout.js"
-import { Divider, Filler, PlainLine } from "../ui/primitives.js"
+import { Divider, Filler, PlainLine, SeparatorColumn } from "../ui/primitives.js"
 import { PullRequestDiffPane } from "../ui/PullRequestDiffPane.js"
 import { PullRequestList } from "../ui/PullRequestList.js"
 import type { DiffFilePanelBundle } from "./WorkspaceContent.js"
@@ -192,12 +192,9 @@ export const PullRequestSurface = (props: PullRequestSurfaceProps) => {
 					pickerQuery={panel.pickerQuery}
 					pickerSelectedIndex={panel.pickerSelectedIndex}
 					pickerResults={panel.pickerResults}
+					onSelectFile={panel.onSelectFile}
 				/>
-				<box width={1} height={wideBodyHeight} flexDirection="column">
-					{Array.from({ length: wideBodyHeight }, (_, index) => (
-						<PlainLine key={`diff-file-panel-sep-${index}`} text="│" fg={colors.separator} />
-					))}
-				</box>
+				<SeparatorColumn height={wideBodyHeight} />
 				{diffPane}
 			</box>
 		)

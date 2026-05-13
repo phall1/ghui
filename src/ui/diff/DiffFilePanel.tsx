@@ -1,7 +1,8 @@
+import type { MouseEvent } from "@opentui/core"
 import { colors } from "../colors.js"
 import { type DiffFilePatch, diffFileStats, diffFileStatsText } from "../diff.js"
 import type { ChangedFileSearchResult } from "../modals/shared.js"
-import { Divider, fitCell, MatchedCell, PaddedRow, PlainLine, TextLine } from "../primitives.js"
+import { Divider, fitCell, HintRow, MatchedCell, PaddedRow, PlainLine, TextLine } from "../primitives.js"
 
 interface DiffFilePanelProps {
 	readonly files: readonly DiffFilePatch[]
@@ -12,24 +13,43 @@ interface DiffFilePanelProps {
 	readonly pickerQuery: string
 	readonly pickerSelectedIndex: number
 	readonly pickerResults: readonly ChangedFileSearchResult[]
+	readonly onSelectFile: (index: number) => void
+}
+
+// Path truncation that preserves the basename and as many trailing segments
+// as fit. `fitCell` head-truncates, which is wrong for paths — we'd see
+// "packages/opencode/src…" and lose the actual filename. Instead, walk
+// slash boundaries from the front and prepend "…/" once we find a tail
+// short enough. As a last resort we head-trim the basename itself.
+const truncatePath = (path: string, width: number): string => {
+	if (width <= 0) return ""
+	if (path.length <= width) return path
+	const segments = path.split("/")
+	for (let start = 1; start < segments.length; start++) {
+		const tail = segments.slice(start).join("/")
+		const candidate = `…/${tail}`
+		if (candidate.length <= width) return candidate
+	}
+	const basename = segments[segments.length - 1] ?? path
+	if (basename.length + 1 <= width) return `…${basename}`
+	return `…${basename.slice(basename.length - (width - 1))}`
 }
 
 // Docked left-rail file list for the diff full-view. Renders in two modes:
 //
 //   1. Passive — picker inactive. Shows every file, highlights the one the
-//      diff is currently scrolled to.
-//   2. Picker — picker active (changedFilesModalActive). Shows a query line
-//      at the top, the filtered/scored result set, and tracks the picker's
-//      own selection cursor.
+//      diff is currently scrolled to. Clicks jump the diff to that file.
+//   2. Picker — picker active (changedFilesModalActive). Shows the query
+//      query at the top, the filtered/scored result set, and tracks the
+//      picker's own selection cursor. Clicks still jump.
 //
 // The component is presentational: the parent decides which mode to render
 // by passing `pickerActive` + the matching slice of state.
-export const DiffFilePanel = ({ files, currentFileIndex, width, height, pickerActive, pickerQuery, pickerSelectedIndex, pickerResults }: DiffFilePanelProps) => {
+export const DiffFilePanel = ({ files, currentFileIndex, width, height, pickerActive, pickerQuery, pickerSelectedIndex, pickerResults, onSelectFile }: DiffFilePanelProps) => {
 	const innerWidth = Math.max(8, width - 2)
-	// Two header rows (title + divider) and, in picker mode, a query + divider
-	// pair. Subtract them to find how many list rows we can paint.
-	const overhead = pickerActive ? 4 : 2
-	const visibleRows = Math.max(1, height - overhead)
+	// Rows used by chrome: title + divider, optional query + divider, hint row.
+	const chromeRows = (pickerActive ? 4 : 2) + 1
+	const visibleRows = Math.max(1, height - chromeRows)
 	const totalCount = files.length
 	const title = pickerActive ? `Files ${pickerResults.length}/${totalCount}` : `Files ${totalCount}`
 
@@ -43,6 +63,18 @@ export const DiffFilePanel = ({ files, currentFileIndex, width, height, pickerAc
 	const scrollStart = Math.min(Math.max(0, rows.length - visibleRows), Math.max(0, selectedRow - Math.floor(visibleRows / 2)))
 	const visibleSlice = rows.slice(scrollStart, scrollStart + visibleRows)
 	const blankRows = Math.max(0, visibleRows - visibleSlice.length)
+
+	const hintItems = pickerActive
+		? [
+				{ key: "↑↓", label: "move" },
+				{ key: "↵", label: "open" },
+				{ key: "⎋", label: "back" },
+			]
+		: [
+				{ key: "[]", label: "prev/next" },
+				{ key: "f", label: "filter" },
+				{ key: "⇧F", label: "hide" },
+			]
 
 	return (
 		<box width={width} height={height} flexDirection="column" backgroundColor={colors.background}>
@@ -71,15 +103,33 @@ export const DiffFilePanel = ({ files, currentFileIndex, width, height, pickerAc
 					const statsWidth = Math.min(10, Math.max(3, stats.length))
 					const nameWidth = Math.max(1, innerWidth - statsWidth - 1)
 					const isSelected = row.index === (pickerActive ? rows[selectedRow]?.index : currentFileIndex)
-					const matchedCellProps = row.matchIndexes ? { matchIndexes: row.matchIndexes } : {}
-					const rowProps = isSelected ? { backgroundColor: colors.selectedBg } : {}
+					const handleMouseDown = function (this: unknown, event: MouseEvent) {
+						if (event.button !== 0) return
+						onSelectFile(row.index)
+					}
+					const truncated = truncatePath(row.file.name, nameWidth)
+					// MatchedCell indices reference positions in the *original* string; if we
+					// head-truncated, those indices no longer line up, so drop the highlight.
+					const showMatches = Boolean(row.matchIndexes && truncated === row.file.name)
 					return (
-						<PaddedRow key={`${row.index}:${row.file.name}`} {...rowProps}>
+						<box
+							key={`${row.index}:${row.file.name}`}
+							flexDirection="row"
+							height={1}
+							paddingLeft={1}
+							paddingRight={1}
+							onMouseDown={handleMouseDown}
+							backgroundColor={isSelected ? colors.selectedBg : colors.background}
+						>
 							<TextLine width={innerWidth} bg={isSelected ? colors.selectedBg : undefined} fg={isSelected ? colors.selectedText : colors.text}>
-								<MatchedCell text={row.file.name} width={nameWidth} query={pickerActive ? pickerQuery : ""} {...matchedCellProps} />
+								{showMatches ? (
+									<MatchedCell text={truncated} width={nameWidth} query={pickerQuery} matchIndexes={row.matchIndexes ?? []} />
+								) : (
+									<span fg={isSelected ? colors.selectedText : colors.text}>{fitCell(truncated, nameWidth)}</span>
+								)}
 								<span fg={colors.muted}> {fitCell(stats, statsWidth, "right")}</span>
 							</TextLine>
-						</PaddedRow>
+						</box>
 					)
 				})
 			)}
@@ -90,6 +140,9 @@ export const DiffFilePanel = ({ files, currentFileIndex, width, height, pickerAc
 						</PaddedRow>
 					))
 				: null}
+			<box width={width} flexDirection="row" paddingLeft={1} paddingRight={1}>
+				<HintRow items={hintItems} />
+			</box>
 		</box>
 	)
 }

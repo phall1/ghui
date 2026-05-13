@@ -812,6 +812,7 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 		syncDiffScrollState,
 		ensureDiffLineVisible,
 		jumpDiffFile,
+		selectDiffFile,
 		openChangedFilesModal,
 		selectChangedFile,
 		moveDiffCommentAnchor,
@@ -1253,8 +1254,9 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 			setSelectedIssueIndex(issues.length)
 			loadMoreIssues()
 		},
+		diffFilePanelDividerColumn: diffFilePanelVisible ? diffFilePanelEffectiveWidth : null,
 	})
-	const { showPaneSplit, workspaceTabCounts, filterPlaceholder, workspaceTopDividerJunctions, workspaceBottomDividerJunctions } = derivations
+	const { showPaneSplit, workspaceTabCounts, filterPlaceholder, workspaceTopDividerJunctions, workspaceBottomDividerJunctions, preFooterDividerJunctions } = derivations
 
 	const modalLayouts = computeModalLayouts({
 		contentWidth,
@@ -1314,6 +1316,7 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 		switchWorkspaceSurface,
 		workspaceTopDividerJunctions,
 		workspaceBottomDividerJunctions,
+		preFooterDividerJunctions,
 		showPaneSplit,
 		dividerJunctionAt,
 		layout,
@@ -1367,6 +1370,7 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 				pickerQuery: changedFilesModal.query,
 				pickerSelectedIndex: changedFilesModal.selectedIndex,
 				pickerResults: changedFileResults,
+				onSelectFile: selectDiffFile,
 			},
 		},
 		footerProps,

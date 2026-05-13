@@ -71,6 +71,7 @@ export interface DiffFilePanelBundle {
 	readonly pickerQuery: string
 	readonly pickerSelectedIndex: number
 	readonly pickerResults: readonly ChangedFileSearchResult[]
+	readonly onSelectFile: (index: number) => void
 }
 
 export const WorkspaceContent = (props: WorkspaceContentProps) => {

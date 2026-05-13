@@ -57,7 +57,7 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 				</>
 			) : null}
 			<WorkspaceContent {...shell.contentProps} />
-			{shell.showPaneSplit ? <Divider width={shell.contentWidth} junctionAt={shell.dividerJunctionAt} junctionChar="┴" /> : <Divider width={shell.contentWidth} />}
+			<Divider width={shell.contentWidth} junctions={shell.preFooterDividerJunctions} />
 			<WorkspaceFooter {...shell.footerProps} />
 			<WorkspaceModals {...shell.modalsProps} />
 		</box>

@@ -62,6 +62,11 @@ export interface WorkspaceDerivationsInput {
 	readonly loadedIssueCount: number
 	readonly loadMoreIssueRowSelected: boolean
 	readonly onSelectLoadMoreIssues: () => void
+	// Column index of the vertical divider between the docked diff file panel
+	// and the diff pane; null when the panel is hidden. Used to thread `┬`/`┴`
+	// junctions through the workspace's horizontal dividers so the rails join
+	// cleanly instead of stopping at the corners.
+	readonly diffFilePanelDividerColumn: number | null
 }
 
 export interface WorkspaceDerivations {
@@ -99,6 +104,8 @@ export interface WorkspaceDerivations {
 	readonly workspaceTabJunctions: readonly number[]
 	readonly workspaceTopDividerJunctions: readonly { readonly at: number; readonly char: string }[]
 	readonly workspaceBottomDividerJunctions: readonly { readonly at: number; readonly char: string }[]
+	readonly preFooterDividerJunctions: readonly { readonly at: number; readonly char: string }[]
+	readonly diffFilePanelDividerColumn: number | null
 }
 
 export const computeWorkspaceDerivations = (input: WorkspaceDerivationsInput): WorkspaceDerivations => {
@@ -153,6 +160,7 @@ export const computeWorkspaceDerivations = (input: WorkspaceDerivationsInput): W
 		loadedIssueCount,
 		loadMoreIssueRowSelected,
 		onSelectLoadMoreIssues,
+		diffFilePanelDividerColumn,
 	} = input
 	void _leftPaneWidth
 
@@ -251,10 +259,22 @@ export const computeWorkspaceDerivations = (input: WorkspaceDerivationsInput): W
 	}
 	const filterPlaceholder = activeWorkspaceSurface === "pullRequests" ? "filter pull requests" : activeWorkspaceSurface === "issues" ? "filter issues" : "filter repositories"
 	const workspaceTabJunctions = workspaceTabSeparatorColumns(workspaceTabCounts, workspaceTabSurfaces)
-	const workspaceTopDividerJunctions = showWorkspaceTabs ? workspaceTabJunctions.map((at) => ({ at, char: "┬" })) : []
+	// Three horizontal dividers, three junction sets. The diff file panel
+	// (when visible) introduces a vertical rail that starts at the top divider
+	// and stops at the pre-footer divider, so we add `┬` and `┴` at those
+	// joints. The middle "tabs bottom" divider never co-occurs with the
+	// panel because the panel only lives inside diff full-view (tabs hidden).
+	const workspaceTopDividerJunctions = [
+		...(showWorkspaceTabs ? workspaceTabJunctions.map((at) => ({ at, char: "┬" })) : []),
+		...(diffFilePanelDividerColumn !== null ? [{ at: diffFilePanelDividerColumn, char: "┬" }] : []),
+	]
 	const workspaceBottomDividerJunctions = showWorkspaceTabs
 		? [...workspaceTabJunctions.map((at) => ({ at, char: "┴" })), ...(showPaneSplit ? [{ at: dividerJunctionAt, char: "┬" }] : [])]
 		: []
+	const preFooterDividerJunctions = [
+		...(showPaneSplit ? [{ at: dividerJunctionAt, char: "┴" }] : []),
+		...(diffFilePanelDividerColumn !== null ? [{ at: diffFilePanelDividerColumn, char: "┴" }] : []),
+	]
 
 	return {
 		fullscreenDetailHeaderHeight,
@@ -291,5 +311,7 @@ export const computeWorkspaceDerivations = (input: WorkspaceDerivationsInput): W
 		workspaceTabJunctions,
 		workspaceTopDividerJunctions,
 		workspaceBottomDividerJunctions,
+		preFooterDividerJunctions,
+		diffFilePanelDividerColumn,
 	}
 }
