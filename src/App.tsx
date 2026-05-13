@@ -1483,21 +1483,7 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 				onRunCommand={runCommandPaletteCommand}
 				onCommentChange={setCommentEditorValue}
 				onCommentSubmit={submitCommentModal}
-				layouts={{
-					Label: modalLayouts.label,
-					Close: modalLayouts.close,
-					PullRequestState: modalLayouts.pullRequestState,
-					Comment: modalLayouts.comment,
-					DeleteComment: modalLayouts.deleteComment,
-					CommentThread: modalLayouts.commentThread,
-					ChangedFiles: modalLayouts.changedFiles,
-					Filter: modalLayouts.filter,
-					SubmitReview: modalLayouts.submitReview,
-					Merge: modalLayouts.merge,
-					Theme: modalLayouts.theme,
-					OpenRepository: modalLayouts.openRepository,
-					CommandPalette: modalLayouts.commandPalette,
-				}}
+				layouts={modalLayouts}
 			/>
 		</box>
 	)

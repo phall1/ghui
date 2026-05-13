@@ -29,19 +29,19 @@ export interface ModalLayoutInput {
 }
 
 export interface ModalLayouts {
-	readonly label: ModalRect
-	readonly changedFiles: ModalRect
-	readonly close: ModalRect
-	readonly deleteComment: ModalRect
-	readonly pullRequestState: ModalRect
-	readonly comment: ModalRect
-	readonly commentThread: ModalRect
-	readonly filter: ModalRect
-	readonly submitReview: ModalRect
-	readonly merge: ModalRect
-	readonly theme: ModalRect
-	readonly openRepository: ModalRect
-	readonly commandPalette: ModalRect
+	readonly Label: ModalRect
+	readonly ChangedFiles: ModalRect
+	readonly Close: ModalRect
+	readonly DeleteComment: ModalRect
+	readonly PullRequestState: ModalRect
+	readonly Comment: ModalRect
+	readonly CommentThread: ModalRect
+	readonly Filter: ModalRect
+	readonly SubmitReview: ModalRect
+	readonly Merge: ModalRect
+	readonly Theme: ModalRect
+	readonly OpenRepository: ModalRect
+	readonly CommandPalette: ModalRect
 }
 
 export const computeModalLayouts = ({ contentWidth, terminalHeight, longestLabelName, longestDiffFileName, changedFilesModalActive }: ModalLayoutInput): ModalLayouts => {
@@ -63,18 +63,18 @@ export const computeModalLayouts = ({ contentWidth, terminalHeight, longestLabel
 		top: centeredOffset(terminalHeight, changedFilesHeight),
 	}
 	return {
-		label,
-		changedFiles,
-		close: sized(46, 68, 12, 12),
-		deleteComment: sized(46, 68, 12, 12),
-		pullRequestState: sized(46, 68, 12, 9),
-		comment: sized(46, 76, 8, 16),
-		commentThread: sized(50, 86, 8, 22),
-		filter: sized(58, 76, 10, 12),
-		submitReview: sized(54, 84, 8, 18),
-		merge: sized(46, 68, 14, 20),
-		theme: sized(38, 58, 12, 16),
-		openRepository: sized(46, 76, 8, 8),
-		commandPalette: sized(50, 88, 8, 24),
+		Label: label,
+		ChangedFiles: changedFiles,
+		Close: sized(46, 68, 12, 12),
+		DeleteComment: sized(46, 68, 12, 12),
+		PullRequestState: sized(46, 68, 12, 9),
+		Comment: sized(46, 76, 8, 16),
+		CommentThread: sized(50, 86, 8, 22),
+		Filter: sized(58, 76, 10, 12),
+		SubmitReview: sized(54, 84, 8, 18),
+		Merge: sized(46, 68, 14, 20),
+		Theme: sized(38, 58, 12, 16),
+		OpenRepository: sized(46, 76, 8, 8),
+		CommandPalette: sized(50, 88, 8, 24),
 	}
 }
