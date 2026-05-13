@@ -36,7 +36,7 @@ import {
 import { activeIssueViewAtom, addIssueLabelAtom, closeIssueAtom, issueLoadAtom, issuesAtom, issueViewRepository, removeIssueLabelAtom } from "./ui/issues/atoms.js"
 import { detailFullViewAtom, detailScrollOffsetAtom } from "./ui/detail/atoms.js"
 import { filterDraftAtom, filterModeAtom, filterQueryAtom } from "./ui/filter/atoms.js"
-import { filterByScore, issueFilterScore, repositoryFilterScore } from "./ui/filter/scoring.js"
+import { repositoryFilterScore } from "./ui/filter/scoring.js"
 import { selectedIndexAtom, selectedIssueIndexAtom } from "./ui/listSelection/atoms.js"
 import { noticeAtom } from "./ui/notice/atoms.js"
 import { useFlashNotice } from "./ui/notice/useFlashNotice.js"
@@ -73,6 +73,7 @@ import {
 } from "./ui/pullRequests/atoms.js"
 
 import { useFocusReturnRefresh } from "./hooks/useFocusReturnRefresh.js"
+import { useIssueListDerivations } from "./hooks/useIssueListDerivations.js"
 import { useCommentsLoader } from "./hooks/useCommentsLoader.js"
 import { useCommentsViewActions } from "./hooks/useCommentsViewActions.js"
 import { useDiffLoader } from "./hooks/useDiffLoader.js"
@@ -134,7 +135,6 @@ import { WorkspaceFooter } from "./surfaces/WorkspaceFooter.js"
 import { WorkspaceHeader } from "./surfaces/WorkspaceHeader.js"
 import { WorkspaceModals } from "./surfaces/WorkspaceModals.js"
 import { WorkspaceTabs } from "./ui/WorkspaceTabs.js"
-import { issueListRowIndex, orderIssuesForDisplay } from "./ui/IssueList.js"
 import { useClampedIndex } from "./ui/useClampedIndex.js"
 import { useScrollFollowSelected } from "./ui/useScrollFollowSelected.js"
 import { useScrollPersistence } from "./ui/useScrollPersistence.js"
@@ -387,29 +387,16 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 	// j/k stepping jumps across groups, since groupBy reorders alphabetically.
 	// Fold in optimistically-closed orphans so freshly-closed issues stay
 	// visible (marked closed) until the next server refresh removes them.
-	const allIssues = useMemo(() => {
-		const seen = new Set<string>()
-		const mapped: IssueItem[] = []
-		for (const issue of rawIssues) {
-			seen.add(issue.url)
-			mapped.push(issueOverrides[issue.url] ?? issue)
-		}
-		const orphans = Object.values(issueOverrides).filter((issue) => !seen.has(issue.url) && issue.state === "closed")
-		const merged = [...mapped, ...orphans].sort((left, right) => right.updatedAt.getTime() - left.updatedAt.getTime())
-		return orderIssuesForDisplay(merged, showIssueRepositoryGroups)
-	}, [rawIssues, issueOverrides, showIssueRepositoryGroups])
-	// Server applies mode-based filtering (authored/assigned/mentioned); no client-side scope filter needed.
-	// `allIssues` is already ordered by `orderIssuesForDisplay`; filterByScore preserves order when the
-	// query is empty and produces score-then-time order otherwise (re-grouping that is intentional).
-	const issues = useMemo(() => {
-		if (activeWorkspaceSurface !== "issues" || visibleFilterText.trim().length === 0) return allIssues
-		const filtered = filterByScore(allIssues, visibleFilterText, issueFilterScore, (issue) => issue.updatedAt.getTime())
-		return orderIssuesForDisplay(filtered, showIssueRepositoryGroups)
-	}, [activeWorkspaceSurface, allIssues, visibleFilterText, showIssueRepositoryGroups])
-	const issuesStatus: LoadStatus = selectedRepository === null ? "ready" : issuesResult.waiting ? "loading" : AsyncResult.isFailure(issuesResult) ? "error" : "ready"
-	const issuesError = AsyncResult.isFailure(issuesResult) ? errorMessage(Cause.squash(issuesResult.cause)) : null
-	const selectedIssue = issues[Math.max(0, Math.min(selectedIssueIndex, issues.length - 1))] ?? null
-	const selectedIssueRowIndex = issueListRowIndex(issues, selectedIssueIndex, showIssueRepositoryGroups)
+	const { allIssues, issues, issuesStatus, issuesError, selectedIssue, selectedIssueRowIndex } = useIssueListDerivations({
+		rawIssues,
+		issueOverrides,
+		showIssueRepositoryGroups,
+		activeWorkspaceSurface,
+		visibleFilterText,
+		selectedRepository,
+		issuesResult,
+		selectedIssueIndex,
+	})
 	pullRequestStatusRef.current = pullRequestStatus
 
 	const visibleGroups = useAtomValue(visibleGroupsAtom)
