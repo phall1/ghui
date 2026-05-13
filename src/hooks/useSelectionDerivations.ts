@@ -19,6 +19,7 @@ export interface UseSelectionDerivationsInput {
 	readonly changedFilesModalActive: boolean
 	readonly changedFilesQuery: string
 	readonly pullRequestListRows: readonly PullRequestListRow[]
+	readonly loadMoreRowSelected: boolean
 }
 
 export interface SelectionDerivations {
@@ -53,6 +54,7 @@ export const useSelectionDerivations = ({
 	changedFilesModalActive,
 	changedFilesQuery,
 	pullRequestListRows,
+	loadMoreRowSelected,
 }: UseSelectionDerivationsInput): SelectionDerivations => {
 	const selectedCommentSubject = activeWorkspaceSurface === "issues" ? selectedIssue : activeWorkspaceSurface === "pullRequests" ? selectedPullRequest : null
 	const selectedCommentKey =
@@ -76,7 +78,7 @@ export const useSelectionDerivations = ({
 		() => (changedFilesModalActive ? filterChangedFiles(readyDiffFiles, changedFilesQuery) : []),
 		[changedFilesModalActive, readyDiffFiles, changedFilesQuery],
 	)
-	const selectedPullRequestRowIndex = pullRequestListRowIndex(pullRequestListRows, selectedPullRequest?.url ?? null)
+	const selectedPullRequestRowIndex = pullRequestListRowIndex(pullRequestListRows, selectedPullRequest?.url ?? null, loadMoreRowSelected)
 
 	return {
 		selectedCommentSubject,

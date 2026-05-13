@@ -32,6 +32,7 @@ import {
 	displayedPullRequestsAtom,
 	groupStartsAtom,
 	hasMorePullRequestsAtom,
+	loadMoreRowSelectedAtom,
 	issueOverridesAtom,
 	loadedPullRequestCountAtom,
 	pullRequestDetailKey,
@@ -340,6 +341,7 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 	const currentQueueCacheKey = viewCacheKey(activeView)
 	const loadedPullRequestCount = useAtomValue(loadedPullRequestCountAtom)
 	const hasMorePullRequests = useAtomValue(hasMorePullRequestsAtom)
+	const loadMoreRowSelected = useAtomValue(loadMoreRowSelectedAtom)
 	const pullRequestListFilterActive = filterMode || filterQuery.length > 0
 	const visibleHasMorePullRequests = !pullRequestListFilterActive && hasMorePullRequests
 	const { loadMorePullRequests, isLoadingMorePullRequests, resetLoadingMore } = useLoadMore({
@@ -391,6 +393,7 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 		changedFilesModalActive,
 		changedFilesQuery: changedFilesModal.query,
 		pullRequestListRows,
+		loadMoreRowSelected,
 	})
 	const {
 		displayedDiffState,
@@ -563,7 +566,8 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 	// cache first, so the user sees the previous list instantly while the new
 	// view's fetch lands.
 
-	useClampedIndex(visiblePullRequests.length, setSelectedIndex)
+	const loadMoreSlotAvailable = visibleHasMorePullRequests && visiblePullRequests.length > 0
+	useClampedIndex(visiblePullRequests.length + (loadMoreSlotAvailable ? 1 : 0), setSelectedIndex)
 	useClampedIndex(issues.length, setSelectedIssueIndex)
 	useClampedIndex(repositoryItems.length, setSelectedRepositoryIndex)
 
@@ -1003,12 +1007,12 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 			repositoryItems,
 			selectedIndex,
 			visibleHasMorePullRequests,
+			loadMoreSlotAvailable,
 			groupStarts,
 			getCurrentGroupIndex,
 			setSelectedIndex,
 			setSelectedIssueIndex,
 			setSelectedRepositoryIndex,
-			loadMorePullRequests,
 		})
 	const handleQuitOrClose = () => {
 		if (themeModalActive) {
@@ -1113,6 +1117,7 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 				runCommandById,
 				openSelection: () => {
 					if (activeWorkspaceSurface === "repos") openSelectedRepository()
+					else if (activeWorkspaceSurface === "pullRequests" && loadMoreRowSelected) loadMorePullRequests()
 					else runCommandById("detail.open")
 				},
 				openRepositoryPicker,
@@ -1219,6 +1224,11 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 		selectPullRequestByUrl,
 		setSelectedIssueIndex,
 		setSelectedRepositoryIndex,
+		loadMoreSelected: loadMoreRowSelected,
+		onSelectLoadMore: () => {
+			setSelectedIndex(visiblePullRequests.length)
+			loadMorePullRequests()
+		},
 	})
 	const { showPaneSplit, workspaceTabCounts, filterPlaceholder, workspaceTopDividerJunctions, workspaceBottomDividerJunctions } = derivations
 

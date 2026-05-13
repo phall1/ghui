@@ -9,12 +9,12 @@ export interface UseListSelectionSteppingInput {
 	readonly repositoryItems: readonly RepositoryListItem[]
 	readonly selectedIndex: number
 	readonly visibleHasMorePullRequests: boolean
+	readonly loadMoreSlotAvailable: boolean
 	readonly groupStarts: readonly number[]
 	readonly getCurrentGroupIndex: (current: number) => number
 	readonly setSelectedIndex: (next: number | ((current: number) => number)) => void
 	readonly setSelectedIssueIndex: (next: number | ((current: number) => number)) => void
 	readonly setSelectedRepositoryIndex: (next: number | ((current: number) => number)) => void
-	readonly loadMorePullRequests: () => boolean | Promise<void> | void
 }
 
 export interface ListSelectionStepping {
@@ -28,14 +28,17 @@ export interface ListSelectionStepping {
 }
 
 /**
- * Movement helpers shared across surfaces. Each helper routes to the
- * right list (repo/issue/PR) based on `activeWorkspaceSurface`.
+ * Movement helpers shared across surfaces. Each helper routes to the right
+ * list (repo/issue/PR) based on `activeWorkspaceSurface`.
  *
- * `stepSelectedDown` triggers `loadMorePullRequests` when stepping
- * past the tail. `stepSelectedDownWithLoadMore` is the explicit
- * keymap action; it'll fire load-more without wrapping. Up-stepping
- * never wraps — PR/Issue lists are long and load lazily, so wrap-to-
- * bottom would jump past unloaded rows.
+ * For the PR list, when `loadMoreSlotAvailable` is true the valid index range
+ * is `[0, visiblePullRequests.length]` — one past the last PR represents the
+ * load-more pseudo-row. Stepping down past the tail lands on it; pressing
+ * Enter there triggers `loadMorePullRequests` via the keymap layer (not from
+ * here). j-wrap behaviour at the very bottom wraps to 0 like before.
+ *
+ * Up-stepping never wraps — PR/Issue lists are long and load lazily, so wrap-
+ * to-bottom would jump past unloaded rows.
  */
 export const useListSelectionStepping = ({
 	activeWorkspaceSurface,
@@ -43,14 +46,14 @@ export const useListSelectionStepping = ({
 	issues,
 	repositoryItems,
 	selectedIndex,
-	visibleHasMorePullRequests,
+	loadMoreSlotAvailable,
 	groupStarts,
 	getCurrentGroupIndex,
 	setSelectedIndex,
 	setSelectedIssueIndex,
 	setSelectedRepositoryIndex,
-	loadMorePullRequests,
 }: UseListSelectionSteppingInput): ListSelectionStepping => {
+	const prMaxIndex = () => Math.max(0, visiblePullRequests.length - 1 + (loadMoreSlotAvailable ? 1 : 0))
 	const moveSelectedToPreviousGroup = () =>
 		setSelectedIndex((current) => {
 			if (activeWorkspaceSurface !== "pullRequests") return current
@@ -80,19 +83,9 @@ export const useListSelectionStepping = ({
 					})
 				: setSelectedIndex((current) => {
 						if (visiblePullRequests.length === 0) return 0
-						return Math.max(0, Math.min(visiblePullRequests.length - 1, current + delta))
+						return Math.max(0, Math.min(prMaxIndex(), current + delta))
 					})
-	const stepSelectedDown = (count = 1) => {
-		if (activeWorkspaceSurface === "repos" || activeWorkspaceSurface === "issues") {
-			stepSelected(count)
-			return
-		}
-		if (visiblePullRequests.length === 0) return
-		if (selectedIndex + count >= visiblePullRequests.length && visibleHasMorePullRequests) {
-			loadMorePullRequests()
-		}
-		stepSelected(count)
-	}
+	const stepSelectedDown = (count = 1) => stepSelected(count)
 	const stepSelectedUp = (count = 1) => stepSelected(-count)
 	const stepSelectedDownWithLoadMore = () => {
 		if (activeWorkspaceSurface === "repos") {
@@ -109,14 +102,12 @@ export const useListSelectionStepping = ({
 			})
 			return
 		}
-		if (visiblePullRequests.length > 0 && selectedIndex >= visiblePullRequests.length - 1 && visibleHasMorePullRequests) {
-			loadMorePullRequests()
-			return
-		}
 		setSelectedIndex((current) => {
 			if (visiblePullRequests.length === 0) return 0
-			return current >= visiblePullRequests.length - 1 ? 0 : current + 1
+			const max = prMaxIndex()
+			return current >= max ? 0 : current + 1
 		})
+		void selectedIndex
 	}
 	const stepSelectedUpWrap = () =>
 		activeWorkspaceSurface === "repos"

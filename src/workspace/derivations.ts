@@ -55,6 +55,8 @@ export interface WorkspaceDerivationsInput {
 	readonly selectPullRequestByUrl: (url: string) => void
 	readonly setSelectedIssueIndex: (index: number) => void
 	readonly setSelectedRepositoryIndex: (index: number) => void
+	readonly loadMoreSelected: boolean
+	readonly onSelectLoadMore: () => void
 }
 
 export interface WorkspaceDerivations {
@@ -139,6 +141,8 @@ export const computeWorkspaceDerivations = (input: WorkspaceDerivationsInput): W
 		selectPullRequestByUrl,
 		setSelectedIssueIndex,
 		setSelectedRepositoryIndex,
+		loadMoreSelected,
+		onSelectLoadMore,
 	} = input
 	void _leftPaneWidth
 
@@ -178,6 +182,7 @@ export const computeWorkspaceDerivations = (input: WorkspaceDerivationsInput): W
 	const prListProps = {
 		groups: visibleGroups,
 		selectedUrl: selectedPullRequest?.url ?? null,
+		loadMoreSelected,
 		status: pullRequestStatus,
 		error: pullRequestError,
 		filterText: visibleFilterText,
@@ -186,6 +191,7 @@ export const computeWorkspaceDerivations = (input: WorkspaceDerivationsInput): W
 		isLoadingMore: isLoadingMorePullRequests,
 		loadingIndicator,
 		onSelectPullRequest: selectPullRequestByUrl,
+		onSelectLoadMore,
 		showTitle: false,
 		showRepositoryGroups: selectedRepository === null,
 	} as const

@@ -42,7 +42,7 @@ describe("buildPullRequestListRows", () => {
 			isLoadingMore: false,
 		})
 
-		expect(rows.at(-1)).toEqual({ _tag: "load-more", text: "↓ Press j to load more  ·  50 loaded" })
+		expect(rows.at(-1)).toEqual({ _tag: "load-more", text: "↓ Press enter to load more  ·  50 loaded" })
 	})
 
 	test("shows an in-progress footer while loading the next page", () => {

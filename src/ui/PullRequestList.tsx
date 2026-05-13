@@ -86,17 +86,18 @@ export const buildPullRequestListRows = ({
 	if (status === "ready" && itemCount > 0 && (hasMore || isLoadingMore)) {
 		rows.push({
 			_tag: "load-more",
-			text: isLoadingMore ? `${loadingIndicator} Loading more pull requests... (${loadedCount} loaded)` : `↓ Press j to load more  ·  ${loadedCount} loaded`,
+			text: isLoadingMore ? `${loadingIndicator} Loading more pull requests... (${loadedCount} loaded)` : `↓ Press enter to load more  ·  ${loadedCount} loaded`,
 		})
 	}
 	return rows
 }
 
-export const pullRequestListRowIndex = (rows: readonly PullRequestListRow[], url: string | null) => {
-	if (!url) return null
+export const pullRequestListRowIndex = (rows: readonly PullRequestListRow[], url: string | null, loadMoreSelected = false) => {
+	if (!url && !loadMoreSelected) return null
 	let line = 0
 	for (const row of rows) {
 		if (row._tag === "pull-request" && row.pullRequest.url === url) return line
+		if (row._tag === "load-more" && loadMoreSelected) return line
 		line += pullRequestListRowHeight(row)
 	}
 	return null
@@ -179,6 +180,7 @@ const PullRequestRow = ({
 export const PullRequestList = ({
 	groups,
 	selectedUrl,
+	loadMoreSelected = false,
 	status,
 	error,
 	contentWidth,
@@ -188,11 +190,13 @@ export const PullRequestList = ({
 	isLoadingMore,
 	loadingIndicator,
 	onSelectPullRequest,
+	onSelectLoadMore,
 	showTitle = true,
 	showRepositoryGroups = true,
 }: {
 	groups: PullRequestGroups
 	selectedUrl: string | null
+	loadMoreSelected?: boolean
 	status: LoadStatus
 	error: string | null
 	contentWidth: number
@@ -202,6 +206,7 @@ export const PullRequestList = ({
 	isLoadingMore: boolean
 	loadingIndicator: string
 	onSelectPullRequest: (url: string) => void
+	onSelectLoadMore?: () => void
 	showTitle?: boolean
 	showRepositoryGroups?: boolean
 }) => {
@@ -224,7 +229,16 @@ export const PullRequestList = ({
 			{rows.map((row, index) => {
 				if (row._tag === "title") return <SectionTitle key="title" title="PULL REQUESTS" />
 				if (row._tag === "message") return <PlainLine key={`message-${index}`} text={row.text} fg={row.color} />
-				if (row._tag === "load-more") return <PlainLine key="load-more" text={row.text} fg={colors.muted} />
+				if (row._tag === "load-more")
+					return (
+						<SelectableRow key="load-more" width={contentWidth} selected={loadMoreSelected} hovered={false} onSelect={() => onSelectLoadMore?.()} onHoverChange={() => {}}>
+							{(rowBg) => (
+								<TextLine width={contentWidth} fg={colors.muted} bg={rowBg}>
+									<span>{row.text}</span>
+								</TextLine>
+							)}
+						</SelectableRow>
+					)
 				if (row._tag === "group") return <GroupTitle key={`group-${row.repository}`} label={row.repository} color={repoColor(row.repository)} filterText={filterText} />
 
 				const pullRequestUrl = row.pullRequest.url

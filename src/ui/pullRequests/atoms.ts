@@ -284,6 +284,16 @@ export const isLoadingMorePullRequestsAtom = Atom.make((get) => {
 	return key !== null && key === viewCacheKey(get(activeViewAtom))
 })
 
+// Selection rests on the load-more pseudo-row when the index is one past the
+// last visible PR. Surfaces an explicit boolean so the keymap layer can branch
+// Enter onto `loadMorePullRequests` instead of `detail.open`, and the renderer
+// can highlight the row.
+export const loadMoreRowSelectedAtom = Atom.make((get) => {
+	const visible = get(visiblePullRequestsAtom)
+	const hasMore = get(hasMorePullRequestsAtom)
+	return hasMore && visible.length > 0 && get(selectedIndexAtom) === visible.length
+})
+
 export const displayedPullRequestsAtom = Atom.make((get) => {
 	const load = get(pullRequestLoadAtom)
 	const overrides = get(pullRequestOverridesAtom)
