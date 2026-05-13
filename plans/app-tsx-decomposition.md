@@ -162,11 +162,19 @@ In progress — plan written 2026-05-12.
   - `src/surfaces/WorkspaceHeader.tsx` — breadcrumb header.
   - The proposed `useModalStack` was deferred — modal state is already centralized in `activeModalAtom` and the per-modal `useFilterModal`/`useThemeModal` hooks; consolidating further would be churn without leverage.
 
-**Phase 5 in progress (2026-05-12).** App.tsx is at ~2,470 LOC, down from 3,007 at plan start. To reach ≤300 LOC the remaining work is non-mechanical:
-- Diff comment navigation block (`openSelectedDiffComment`, `moveDiffCommentThread`, `jumpDiffFile`, `selectDiffCommentLine`, `toggleDiffCommentRange`, …) — ~180 LOC of closures over diff anchors + refs.
-- Pull request action handlers (close/merge/draft toggle/labels modal lifecycle/submit review/comment submit) — ~250 LOC, each closes over many atoms + flashNotice + refresh side-effects.
-- Detail/comments/diff hydration choreography (`useDetailHydration`, `loadPullRequestComments`, `loadIssueComments`, `loadPullRequestDiff`, `refreshSelectedComments`, …) — ~200 LOC.
-- The transient render-time block (`prListProps`, `issueListProps`, list-needs-scroll math, `workspaceTab*`, `narrow*` heights, junction calculations) — ~120 LOC.
-- The modal-stack JSX bundle inside `WorkspaceModals` already absorbs the modal rendering; the per-modal *handlers* still live in App.tsx.
+**Phase 5 — substantial cleanup shipped 2026-05-12.** App.tsx down from 3,007 → ~1,690 LOC. Targeted hooks landed:
 
-These four chunks would each become a named hook (or surface module) in a follow-up pass. The pattern is now well-established by Phases 1-4: data into atoms or pure helpers, behaviour into named hooks, JSX into surfaces.
+- `useDiffCommentNavigator` (309 LOC) — 17 imperative diff-comment actions (anchor movement, file navigation, range toggle, modal openers).
+- `usePullRequestModalActions` — close/draft/label/submit-review confirmation handlers.
+- `useDiffCommentDerivations` — `useMemo` chain for stacked files + anchor selection + label/thread/range derivations.
+- `useCommentsLoader`, `useDiffLoader`, `useCommentsViewActions` — comments + diff loading and the full-screen comments view actions.
+- `useWorkspaceNavigation` — `switchViewTo`/`switchQueueMode`/`switchWorkspaceSurface`/`goUpWorkspaceScope`/repo favourite/remove.
+- `useLinkNavigation` — inline-link / `#123` reference routing.
+- `usePasteRouter` — paste dispatcher across modal/filter inputs.
+- `useCommandRegistry` — command-snapshot → palette pipeline + `commandRuntimeAtom` sync.
+- `useListSelectionStepping` + `useModalSelectionMovers` — keymap selection helpers.
+- `useLoadMoreOnScroll`, `useDiffSelectionSync` — small useEffect bundles.
+- `workspace/derivations.ts`, `workspace/repositoryItems.ts` — pure render-prep math.
+- `surfaces/WorkspaceContent.tsx`, `surfaces/WorkspaceFooter.tsx` — JSX bundling.
+
+App.tsx now reads as a coordinated assembly: ~80 imports, atom subscriptions, ~12 hook calls, the keymap `appCtx` build, and a short render block. The ≤300 LOC target proved impractical for one session — the remaining ~1,400 LOC is the App component's own essential state coordination (atoms, refs, the keymap appCtx wiring, header/footer/modals JSX). Each is small individually but together they're the "shell that owns the wiring." Further cleanup is straightforward but high-volume: split the keymap appCtx into per-mode builders, lift the per-modal flag derivations into the modal stack atom, push the small handler helpers (`scrollDetailFullViewBy`, etc.) into the surface modules that consume them.
