@@ -83,6 +83,7 @@ import {
 } from "./ui/pullRequests/atoms.js"
 
 import { useFocusReturnRefresh } from "./hooks/useFocusReturnRefresh.js"
+import { useDiffSelectionSync } from "./hooks/useDiffSelectionSync.js"
 import { useLoadMoreOnScroll } from "./hooks/useLoadMoreOnScroll.js"
 import { useLoadMore } from "./ui/pullRequests/useLoadMore.js"
 import { useFilterModal } from "./ui/filter/useFilterModal.js"
@@ -115,7 +116,7 @@ import { themeIdAtom } from "./ui/theme/atoms.js"
 import { useThemeModal } from "./ui/theme/useThemeModal.js"
 import { useMergeFlow } from "./ui/merge/useMergeFlow.js"
 import { insertText, type CommentEditorValue } from "./ui/commentEditor.js"
-import { minimizeWhitespaceDiffFiles, PullRequestDiffState, pullRequestDiffKey, safeDiffFileIndex, splitPatchFiles } from "./ui/diff.js"
+import { minimizeWhitespaceDiffFiles, PullRequestDiffState, pullRequestDiffKey, splitPatchFiles } from "./ui/diff.js"
 import { type DetailCommentsStatus, type DetailPlaceholderContent } from "./ui/DetailsPane.js"
 import { RetryProgress } from "./ui/FooterHints.js"
 import { LoadingLogoPane } from "./ui/LoadingLogo.js"
@@ -907,38 +908,21 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 	useScrollPersistence(prListScrollRef, prListScrollPersistedRef, activeWorkspaceSurface === "pullRequests" && !detailFullView && !diffFullView && !commentsViewActive)
 	useScrollPersistence(issueListScrollRef, issueListScrollPersistedRef, activeWorkspaceSurface === "issues" && !detailFullView && !diffFullView && !commentsViewActive)
 
-	useEffect(() => {
-		setDiffFileIndex(0)
-		setDiffScrollTop(0)
-		setDiffCommentAnchorIndex(0)
-		setDiffPreferredSide(null)
-		setDiffCommentRangeStartIndex(null)
-		detailPreviewScrollRef.current?.scrollTo({ x: 0, y: 0 })
-	}, [selectedIndex])
-
-	useEffect(() => {
-		detailPreviewScrollRef.current?.scrollTo({ x: 0, y: 0 })
-	}, [selectedIssueIndex, selectedRepositoryIndex])
-
-	useEffect(() => {
-		setDiffFileIndex((current) => safeDiffFileIndex(readyDiffFiles, current))
-	}, [readyDiffFiles.length])
-
-	useEffect(() => {
-		setDiffCommentAnchorIndex((current) => {
-			if (diffCommentAnchors.length === 0) return 0
-			return Math.max(0, Math.min(current, diffCommentAnchors.length - 1))
-		})
-		setDiffCommentRangeStartIndex((current) => {
-			if (current === null || diffCommentAnchors.length === 0) return null
-			return Math.max(0, Math.min(current, diffCommentAnchors.length - 1))
-		})
-	}, [diffCommentAnchors.length])
-
-	useEffect(() => {
-		if (!diffFullView || !selectedDiffCommentAnchor) return
-		setDiffFileIndex((current) => (current === selectedDiffCommentAnchor.fileIndex ? current : selectedDiffCommentAnchor.fileIndex))
-	}, [diffFullView, selectedDiffCommentAnchor?.fileIndex])
+	useDiffSelectionSync({
+		selectedIndex,
+		selectedIssueIndex,
+		selectedRepositoryIndex,
+		readyDiffFiles,
+		diffCommentAnchors,
+		diffFullView,
+		selectedDiffCommentAnchor,
+		detailPreviewScrollRef,
+		setDiffFileIndex,
+		setDiffScrollTop,
+		setDiffCommentAnchorIndex,
+		setDiffPreferredSide,
+		setDiffCommentRangeStartIndex,
+	})
 
 	useDiffLocationPreservation({
 		diffFullView,
