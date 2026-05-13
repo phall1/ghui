@@ -10,30 +10,14 @@ import { errorMessage } from "./errors.js"
 import { parseRepositoryInput, viewCacheKey } from "./pullRequestViews.js"
 
 import { colors } from "./ui/colors.js"
-import {
-	favoriteRepositoriesAtom,
-	readRepoRollupAtom,
-	readWorkspacePreferencesAtom,
-	recentRepositoriesAtom,
-	repoRollupAtom,
-	selectedRepositoryIndexAtom,
-	workspaceSurfaceAtom,
-	writeWorkspacePreferencesAtom,
-} from "./workspace/atoms.js"
+import { favoriteRepositoriesAtom, recentRepositoriesAtom, repoRollupAtom, selectedRepositoryIndexAtom, workspaceSurfaceAtom } from "./workspace/atoms.js"
 import { computeLayout } from "./workspace/layout.js"
 import { computeModalLayouts } from "./workspace/modalLayouts.js"
 import { computeWorkspaceDerivations } from "./workspace/derivations.js"
 import { buildRepositoryItems } from "./workspace/repositoryItems.js"
 import { useWorkspacePreferencesPersistence } from "./workspace/useWorkspacePreferencesPersistence.js"
-import {
-	commentsViewActiveAtom,
-	commentsViewSelectionAtom,
-	listIssueCommentsAtom,
-	listPullRequestCommentsAtom,
-	pullRequestCommentsAtom,
-	pullRequestCommentsLoadedAtom,
-} from "./ui/comments/atoms.js"
-import { activeIssueViewAtom, addIssueLabelAtom, closeIssueAtom, issueLoadAtom, issuesAtom, issueViewRepository, removeIssueLabelAtom } from "./ui/issues/atoms.js"
+import { commentsViewActiveAtom, commentsViewSelectionAtom, pullRequestCommentsAtom, pullRequestCommentsLoadedAtom } from "./ui/comments/atoms.js"
+import { activeIssueViewAtom, issueLoadAtom, issuesAtom, issueViewRepository } from "./ui/issues/atoms.js"
 import { detailFullViewAtom, detailScrollOffsetAtom } from "./ui/detail/atoms.js"
 import { filterDraftAtom, filterModeAtom, filterQueryAtom } from "./ui/filter/atoms.js"
 import { repositoryFilterScore } from "./ui/filter/scoring.js"
@@ -44,16 +28,12 @@ import { canEditComment, useCommentMutations } from "./ui/comments/useCommentMut
 import { useDetailHydration } from "./ui/pullRequests/useDetailHydration.js"
 import {
 	activeViewAtom,
-	addPullRequestLabelAtom,
-	closePullRequestAtom,
 	activeViewsAtom,
 	displayedPullRequestsAtom,
 	groupStartsAtom,
 	hasMorePullRequestsAtom,
 	issueOverridesAtom,
 	loadedPullRequestCountAtom,
-	prewarmRepositoryDetailsAtom,
-	pruneCacheAtom,
 	pullRequestDetailKey,
 	pullRequestLoadAtom,
 	pullRequestOverridesAtom,
@@ -62,17 +42,16 @@ import {
 	queueLoadCacheAtom,
 	queueSelectionAtom,
 	recentlyCompletedPullRequestsAtom,
-	removePullRequestLabelAtom,
 	retryProgressAtom,
 	selectedPullRequestAtom,
 	selectedRepositoryAtom,
-	toggleDraftAtom,
 	usernameAtom,
 	visibleGroupsAtom,
 	visiblePullRequestsAtom,
 } from "./ui/pullRequests/atoms.js"
 
 import { useFocusReturnRefresh } from "./hooks/useFocusReturnRefresh.js"
+import { useGitHubActions } from "./hooks/useGitHubActions.js"
 import { useIssueListDerivations } from "./hooks/useIssueListDerivations.js"
 import { useCommentsLoader } from "./hooks/useCommentsLoader.js"
 import { useCommentsViewActions } from "./hooks/useCommentsViewActions.js"
@@ -96,7 +75,6 @@ import { useLoadMore } from "./ui/pullRequests/useLoadMore.js"
 import { useFilterModal } from "./ui/filter/useFilterModal.js"
 import { useRefreshCompletionToast } from "./ui/pullRequests/useRefreshCompletionToast.js"
 import { useRepositoryDetails } from "./ui/pullRequests/useRepositoryDetails.js"
-import { openUrlAtom, submitPullRequestReviewAtom } from "./services/systemAtoms.js"
 import {
 	diffCommentAnchorIndexAtom,
 	diffCommentRangeStartIndexAtom,
@@ -109,7 +87,6 @@ import {
 	diffScrollTopAtom,
 	diffWhitespaceModeAtom,
 	diffWrapModeAtom,
-	listPullRequestReviewCommentsAtom,
 	pullRequestDiffCacheAtom,
 	selectedDiffKeyAtom,
 	selectedDiffStateAtom,
@@ -289,23 +266,26 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 	const [startupLoadComplete, setStartupLoadComplete] = useState(false)
 	const [homeCrumbHovered, setHomeCrumbHovered] = useState(false)
 	const usernameResult = useAtomValue(usernameAtom)
-	const addPullRequestLabel = useAtomSet(addPullRequestLabelAtom, { mode: "promise" })
-	const removePullRequestLabel = useAtomSet(removePullRequestLabelAtom, { mode: "promise" })
-	const addIssueLabel = useAtomSet(addIssueLabelAtom, { mode: "promise" })
-	const removeIssueLabel = useAtomSet(removeIssueLabelAtom, { mode: "promise" })
-	const toggleDraftStatus = useAtomSet(toggleDraftAtom, { mode: "promise" })
-	const listPullRequestReviewComments = useAtomSet(listPullRequestReviewCommentsAtom, { mode: "promise" })
-	const listPullRequestComments = useAtomSet(listPullRequestCommentsAtom, { mode: "promise" })
-	const listIssueComments = useAtomSet(listIssueCommentsAtom, { mode: "promise" })
-	const readWorkspacePreferences = useAtomSet(readWorkspacePreferencesAtom, { mode: "promise" })
-	const writeWorkspacePreferences = useAtomSet(writeWorkspacePreferencesAtom, { mode: "promise" })
-	const pruneCache = useAtomSet(pruneCacheAtom, { mode: "promise" })
-	const prewarmRepositoryDetails = useAtomSet(prewarmRepositoryDetailsAtom, { mode: "promise" })
-	const closePullRequest = useAtomSet(closePullRequestAtom, { mode: "promise" })
-	const closeIssue = useAtomSet(closeIssueAtom, { mode: "promise" })
-	const refreshIssuesAtomRaw = useAtomRefresh(issuesAtom)
-	const submitPullRequestReview = useAtomSet(submitPullRequestReviewAtom, { mode: "promise" })
-	const openUrl = useAtomSet(openUrlAtom, { mode: "promise" })
+	const {
+		addPullRequestLabel,
+		removePullRequestLabel,
+		addIssueLabel,
+		removeIssueLabel,
+		toggleDraftStatus,
+		listPullRequestReviewComments,
+		listPullRequestComments,
+		listIssueComments,
+		readWorkspacePreferences,
+		writeWorkspacePreferences,
+		pruneCache,
+		prewarmRepositoryDetails,
+		closePullRequest,
+		closeIssue,
+		refreshIssuesAtomRaw,
+		submitPullRequestReview,
+		openUrl,
+		readRepoRollup,
+	} = useGitHubActions()
 	const terminalWidth = width ?? 100
 	const terminalHeight = height ?? 24
 	const showWorkspaceTabs = !detailFullView && !diffFullView && !commentsViewActive
@@ -363,7 +343,6 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 	const [recentRepositories, setRecentRepositories] = useAtom(recentRepositoriesAtom)
 	const repoRollup = useAtomValue(repoRollupAtom)
 	const setRepoRollup = useAtomSet(repoRollupAtom)
-	const readRepoRollup = useAtomSet(readRepoRollupAtom, { mode: "promise" })
 	const issuesResult = useAtomValue(issuesAtom)
 	const issueLoad = useAtomValue(issueLoadAtom)
 	const [selectedIssueIndex, setSelectedIssueIndex] = useAtom(selectedIssueIndexAtom)
