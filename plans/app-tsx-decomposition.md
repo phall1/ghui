@@ -179,6 +179,15 @@ In progress — plan written 2026-05-12.
 
 App.tsx now reads as a coordinated assembly: ~80 imports, atom subscriptions, ~12 hook calls, the keymap `appCtx` build, and a short render block.
 
+**Continuation push #2 (2026-05-13):**
+
+- `useAppKeymap` — accepts a flat record of every keymap dependency, internally builds the structured `BuildAppCtxInput` + `UseTextInputDispatcherInput`. App.tsx no longer hand-shapes 145 lines of nested literal.
+- `WorkspaceContent` now takes `scrollRefs` as a single bundle.
+- `computeFooterProps` — collapses 20 inline footer-flag derivations into one pure helper; App.tsx renders `<WorkspaceFooter {...footerProps} />`.
+- Pagination work landed in parallel: `useIssuesLoadMore`, `issueCache.ts`, `loadMoreRowSelectedAtom` for both PR and issues, selectable Enter-on-row affordance.
+
+App.tsx is at ~1,380 LOC — settled near a floor where each remaining line is either an atom subscription, a hook call with its dependency bundle, or essential render-shell JSX. The keymap context build is the single largest remaining structured chunk (~120 LOC inside `useAppKeymap`); flatting it further requires reshaping `BuildAppCtxInput`, tracked separately.
+
 **Continuation push (2026-05-12, ~1,380 LOC):** another ~12 extractions land on top of the earlier pass:
 
 - `useModalStack`, `useDiffViewState`, `useViewModeState`, `useGitHubActions`, `useScrollRefs` — atom-subscription bundles.
