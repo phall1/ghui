@@ -16,9 +16,8 @@ import { computeModalLayouts } from "./workspace/modalLayouts.js"
 import { computeWorkspaceDerivations } from "./workspace/derivations.js"
 import { buildRepositoryItems } from "./workspace/repositoryItems.js"
 import { useWorkspacePreferencesPersistence } from "./workspace/useWorkspacePreferencesPersistence.js"
-import { commentsViewActiveAtom, commentsViewSelectionAtom, pullRequestCommentsAtom, pullRequestCommentsLoadedAtom } from "./ui/comments/atoms.js"
+import { pullRequestCommentsAtom, pullRequestCommentsLoadedAtom } from "./ui/comments/atoms.js"
 import { activeIssueViewAtom, issueLoadAtom, issuesAtom, issueViewRepository } from "./ui/issues/atoms.js"
-import { detailFullViewAtom, detailScrollOffsetAtom } from "./ui/detail/atoms.js"
 import { filterDraftAtom, filterModeAtom, filterQueryAtom } from "./ui/filter/atoms.js"
 import { repositoryFilterScore } from "./ui/filter/scoring.js"
 import { selectedIndexAtom, selectedIssueIndexAtom } from "./ui/listSelection/atoms.js"
@@ -71,12 +70,13 @@ import { usePasteRouter } from "./hooks/usePasteRouter.js"
 import { useWorkspaceNavigation } from "./hooks/useWorkspaceNavigation.js"
 import { useDiffSelectionSync } from "./hooks/useDiffSelectionSync.js"
 import { useDiffViewState } from "./hooks/useDiffViewState.js"
+import { useViewModeState } from "./hooks/useViewModeState.js"
 import { useLoadMoreOnScroll } from "./hooks/useLoadMoreOnScroll.js"
 import { useLoadMore } from "./ui/pullRequests/useLoadMore.js"
 import { useFilterModal } from "./ui/filter/useFilterModal.js"
 import { useRefreshCompletionToast } from "./ui/pullRequests/useRefreshCompletionToast.js"
 import { useRepositoryDetails } from "./ui/pullRequests/useRepositoryDetails.js"
-import { diffFullViewAtom, selectedDiffKeyAtom, selectedDiffStateAtom } from "./ui/diff/atoms.js"
+import { selectedDiffKeyAtom, selectedDiffStateAtom } from "./ui/diff/atoms.js"
 import { diffCommentThreadMapKey } from "./ui/diff/comments.js"
 import { useDiffLineColors } from "./ui/diff/useDiffLineColors.js"
 import { useDiffLocationPreservation } from "./ui/diff/useDiffLocationPreservation.js"
@@ -185,11 +185,17 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 	const [filterDraft, setFilterDraft] = useAtom(filterDraftAtom)
 	const [filterMode, setFilterMode] = useAtom(filterModeAtom)
 	const [activeIssueView, setActiveIssueView] = useAtom(activeIssueViewAtom)
-	const [detailFullView, setDetailFullView] = useAtom(detailFullViewAtom)
-	const setDetailScrollOffset = useAtomSet(detailScrollOffsetAtom)
-	const [diffFullView, setDiffFullView] = useAtom(diffFullViewAtom)
-	const [commentsViewActive, setCommentsViewActive] = useAtom(commentsViewActiveAtom)
-	const [commentsViewSelection, setCommentsViewSelection] = useAtom(commentsViewSelectionAtom)
+	const {
+		detailFullView,
+		setDetailFullView,
+		setDetailScrollOffset,
+		diffFullView,
+		setDiffFullView,
+		commentsViewActive,
+		setCommentsViewActive,
+		commentsViewSelection,
+		setCommentsViewSelection,
+	} = useViewModeState()
 	const {
 		diffFileIndex,
 		setDiffFileIndex,
