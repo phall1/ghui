@@ -70,27 +70,13 @@ import { useStartupTasks } from "./hooks/useStartupTasks.js"
 import { usePasteRouter } from "./hooks/usePasteRouter.js"
 import { useWorkspaceNavigation } from "./hooks/useWorkspaceNavigation.js"
 import { useDiffSelectionSync } from "./hooks/useDiffSelectionSync.js"
+import { useDiffViewState } from "./hooks/useDiffViewState.js"
 import { useLoadMoreOnScroll } from "./hooks/useLoadMoreOnScroll.js"
 import { useLoadMore } from "./ui/pullRequests/useLoadMore.js"
 import { useFilterModal } from "./ui/filter/useFilterModal.js"
 import { useRefreshCompletionToast } from "./ui/pullRequests/useRefreshCompletionToast.js"
 import { useRepositoryDetails } from "./ui/pullRequests/useRepositoryDetails.js"
-import {
-	diffCommentAnchorIndexAtom,
-	diffCommentRangeStartIndexAtom,
-	diffCommentsLoadedAtom,
-	diffCommentThreadsAtom,
-	diffFileIndexAtom,
-	diffFullViewAtom,
-	diffPreferredSideAtom,
-	diffRenderViewAtom,
-	diffScrollTopAtom,
-	diffWhitespaceModeAtom,
-	diffWrapModeAtom,
-	pullRequestDiffCacheAtom,
-	selectedDiffKeyAtom,
-	selectedDiffStateAtom,
-} from "./ui/diff/atoms.js"
+import { diffFullViewAtom, selectedDiffKeyAtom, selectedDiffStateAtom } from "./ui/diff/atoms.js"
 import { diffCommentThreadMapKey } from "./ui/diff/comments.js"
 import { useDiffLineColors } from "./ui/diff/useDiffLineColors.js"
 import { useDiffLocationPreservation } from "./ui/diff/useDiffLocationPreservation.js"
@@ -204,19 +190,28 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 	const [diffFullView, setDiffFullView] = useAtom(diffFullViewAtom)
 	const [commentsViewActive, setCommentsViewActive] = useAtom(commentsViewActiveAtom)
 	const [commentsViewSelection, setCommentsViewSelection] = useAtom(commentsViewSelectionAtom)
-	const [diffFileIndex, setDiffFileIndex] = useAtom(diffFileIndexAtom)
-	const [diffScrollTop, setDiffScrollTop] = useAtom(diffScrollTopAtom)
-	const [diffRenderView, setDiffRenderView] = useAtom(diffRenderViewAtom)
-	const diffWrapMode = useAtomValue(diffWrapModeAtom)
-	const diffWhitespaceMode = useAtomValue(diffWhitespaceModeAtom)
-	const [diffCommentAnchorIndex, setDiffCommentAnchorIndex] = useAtom(diffCommentAnchorIndexAtom)
-	const [diffPreferredSide, setDiffPreferredSide] = useAtom(diffPreferredSideAtom)
-	const [diffCommentRangeStartIndex, setDiffCommentRangeStartIndex] = useAtom(diffCommentRangeStartIndexAtom)
-	const [diffCommentThreads, setDiffCommentThreads] = useAtom(diffCommentThreadsAtom)
-	const setDiffCommentsLoaded = useAtomSet(diffCommentsLoadedAtom)
+	const {
+		diffFileIndex,
+		setDiffFileIndex,
+		diffScrollTop,
+		setDiffScrollTop,
+		diffRenderView,
+		setDiffRenderView,
+		diffWrapMode,
+		diffWhitespaceMode,
+		diffCommentAnchorIndex,
+		setDiffCommentAnchorIndex,
+		diffPreferredSide,
+		setDiffPreferredSide,
+		diffCommentRangeStartIndex,
+		setDiffCommentRangeStartIndex,
+		diffCommentThreads,
+		setDiffCommentThreads,
+		setDiffCommentsLoaded,
+		setPullRequestDiffCache,
+	} = useDiffViewState()
 	const setPullRequestComments = useAtomSet(pullRequestCommentsAtom)
 	const setPullRequestCommentsLoaded = useAtomSet(pullRequestCommentsLoadedAtom)
-	const setPullRequestDiffCache = useAtomSet(pullRequestDiffCacheAtom)
 	const themeId = useAtomValue(themeIdAtom)
 	const {
 		activeModal,
