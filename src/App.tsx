@@ -31,6 +31,7 @@ import {
 import { computeLayout } from "./workspace/layout.js"
 import { computeModalLayouts } from "./workspace/modalLayouts.js"
 import { computeWorkspaceDerivations } from "./workspace/derivations.js"
+import { buildRepositoryItems } from "./workspace/repositoryItems.js"
 import { useWorkspacePreferencesPersistence } from "./workspace/useWorkspacePreferencesPersistence.js"
 import {
 	commentsViewActiveAtom,
@@ -481,76 +482,19 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 	const visiblePullRequests = useAtomValue(visiblePullRequestsAtom)
 	const selectedPullRequest = useAtomValue(selectedPullRequestAtom)
 	const workspaceTabSurfaces: readonly WorkspaceSurface[] = selectedRepository ? repositoryWorkspaceSurfaces : userWorkspaceSurfaces
-	const allRepositoryItems = useMemo((): readonly RepositoryListItem[] => {
-		const byRepository = new Map<string, RepositoryListItem>()
-		const catalog = new Map(mockRepositoryCatalog.map((item) => [item.repository, item]))
-		const ensure = (repository: string): RepositoryListItem => {
-			const existing = byRepository.get(repository)
-			if (existing) return existing
-			const catalogItem = catalog.get(repository)
-			const item: RepositoryListItem = {
-				repository,
-				pullRequestCount: 0,
-				issueCount: 0,
-				current: repository === detectedRepository,
-				favorite: favoriteRepositories[repository] === true,
-				recent: recentRepositories.includes(repository),
-				lastActivityAt: null,
-				description: catalogItem?.description ?? null,
-			}
-			byRepository.set(repository, item)
-			return item
-		}
-		// Seed phase: repos surfaced by user state (favorites/recents/cwd) and by
-		// the cached rollup, so the Repos tab can render with counts + activity
-		// dates before the live PR/issue queries return.
-		for (const repository of [...recentRepositories, ...Object.keys(favoriteRepositories), ...(detectedRepository ? [detectedRepository] : [])]) {
-			ensure(repository)
-		}
-		for (const row of repoRollup) {
-			const item = ensure(row.repository)
-			byRepository.set(row.repository, {
-				...item,
-				pullRequestCount: row.pullRequestCount,
-				issueCount: row.issueCount,
-				lastActivityAt: row.lastActivityAt,
-			})
-		}
-		// Live phase: aggregate per-repo from the currently-loaded PR + issue
-		// arrays, then *override* the seeded counts/activity for repos that have
-		// fresh data. Repos with rollup-only data keep their cached values.
-		const liveCounts = new Map<string, { pullRequestCount: number; issueCount: number; lastActivityAt: Date | null }>()
-		const bumpLive = (repository: string, at: Date, key: "pullRequestCount" | "issueCount") => {
-			const entry = liveCounts.get(repository) ?? { pullRequestCount: 0, issueCount: 0, lastActivityAt: null }
-			entry[key] = entry[key] + 1
-			if (!entry.lastActivityAt || entry.lastActivityAt < at) entry.lastActivityAt = at
-			liveCounts.set(repository, entry)
-		}
-		for (const pullRequest of pullRequests) {
-			bumpLive(pullRequest.repository, pullRequest.updatedAt, "pullRequestCount")
-		}
-		for (const issue of allIssues) {
-			bumpLive(issue.repository, issue.updatedAt, "issueCount")
-		}
-		for (const [repository, entry] of liveCounts) {
-			const current = ensure(repository)
-			const lastActivityAt = entry.lastActivityAt && (!current.lastActivityAt || current.lastActivityAt < entry.lastActivityAt) ? entry.lastActivityAt : current.lastActivityAt
-			byRepository.set(repository, {
-				...current,
-				pullRequestCount: entry.pullRequestCount,
-				issueCount: entry.issueCount,
-				lastActivityAt,
-			})
-		}
-		return [...byRepository.values()].sort((left, right) => {
-			if (left.current !== right.current) return left.current ? -1 : 1
-			if (left.favorite !== right.favorite) return left.favorite ? -1 : 1
-			if (left.recent !== right.recent) return left.recent ? -1 : 1
-			const leftTime = left.lastActivityAt?.getTime() ?? 0
-			const rightTime = right.lastActivityAt?.getTime() ?? 0
-			return rightTime - leftTime || left.repository.localeCompare(right.repository)
-		})
-	}, [favoriteRepositories, recentRepositories, pullRequests, allIssues, repoRollup])
+	const allRepositoryItems = useMemo(
+		(): readonly RepositoryListItem[] =>
+			buildRepositoryItems({
+				recentRepositories,
+				favoriteRepositories,
+				detectedRepository,
+				repoRollup,
+				pullRequests,
+				allIssues,
+				mockRepositoryCatalog,
+			}),
+		[favoriteRepositories, recentRepositories, pullRequests, allIssues, repoRollup],
+	)
 	const repositoryItems = useMemo(
 		() => (activeWorkspaceSurface === "repos" ? allRepositoryItems.filter((repository) => repositoryFilterScore(repository, visibleFilterText) !== null) : allRepositoryItems),
 		[activeWorkspaceSurface, allRepositoryItems, visibleFilterText],
