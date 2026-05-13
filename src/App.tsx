@@ -85,6 +85,7 @@ import { useKeymapWiring } from "./hooks/useKeymapWiring.js"
 import { useModalStack } from "./hooks/useModalStack.js"
 import { usePullRequestMutations } from "./hooks/usePullRequestMutations.js"
 import { usePullRequestRefresh } from "./hooks/usePullRequestRefresh.js"
+import { useStartupTasks } from "./hooks/useStartupTasks.js"
 import { usePasteRouter } from "./hooks/usePasteRouter.js"
 import { useWorkspaceNavigation } from "./hooks/useWorkspaceNavigation.js"
 import { useDiffSelectionSync } from "./hooks/useDiffSelectionSync.js"
@@ -674,13 +675,6 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 	// cache first, so the user sees the previous list instantly while the new
 	// view's fetch lands.
 
-	// Best-effort startup prune: writeQueue prunes after each successful refresh,
-	// but a session that only browses cached state (or stays offline) never prunes.
-	// Firing once at mount keeps the cache bounded for those sessions.
-	useEffect(() => {
-		void pruneCache().catch(() => {})
-	}, [pruneCache])
-
 	useClampedIndex(visiblePullRequests.length, setSelectedIndex)
 	useClampedIndex(issues.length, setSelectedIssueIndex)
 	useClampedIndex(repositoryItems.length, setSelectedRepositoryIndex)
@@ -696,30 +690,23 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 		setRecentRepositories,
 	})
 
-	// Hydrate the repo rollup once we know who we are. The rollup seeds the
-	// Repos tab with cached counts and last-activity dates so it can render
-	// before the live PR + issue queries return. Re-runs whenever live queue
-	// loads land so the rollup stays current within the session.
-	useEffect(() => {
-		if (!username) return
-		void readRepoRollup(username)
-			.then((rows) => setRepoRollup(rows))
-			.catch(() => {})
-	}, [username, pullRequestLoad?.fetchedAt, issueLoad?.fetchedAt, readRepoRollup, setRepoRollup])
-
-	// Background prewarm of `repository_details` for the user's repo set.
-	// Skips fetches with cached rows younger than the in-atom TTL. Fire-and-
-	// forget; failures don't surface to the user.
-	useEffect(() => {
-		if (!username) return
-		const repositories = Array.from(new Set([...recentRepositories, ...Object.keys(favoriteRepositories), ...(detectedRepository ? [detectedRepository] : [])]))
-		if (repositories.length === 0) return
-		void prewarmRepositoryDetails(repositories).catch(() => {})
-	}, [username, recentRepositories, favoriteRepositories, prewarmRepositoryDetails])
-
-	useEffect(() => {
-		setQueueSelection((current) => (current[currentQueueCacheKey] === selectedIndex ? current : { ...current, [currentQueueCacheKey]: selectedIndex }))
-	}, [currentQueueCacheKey, selectedIndex])
+	useStartupTasks({
+		username,
+		recentRepositories,
+		favoriteRepositories,
+		detectedRepository,
+		pullRequestLoad,
+		issueLoad,
+		currentQueueCacheKey,
+		selectedIndex,
+		readRepoRollup,
+		setRepoRollup,
+		prewarmRepositoryDetails,
+		pruneCache,
+		setQueueSelection,
+		issues,
+		pullRequests,
+	})
 
 	useLoadMoreOnScroll({
 		prListScrollRef,
