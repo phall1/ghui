@@ -42,7 +42,6 @@ import { detailFullViewAtom, detailScrollOffsetAtom } from "./ui/detail/atoms.js
 import { filterDraftAtom, filterModeAtom, filterQueryAtom } from "./ui/filter/atoms.js"
 import { filterByScore, issueFilterScore, repositoryFilterScore } from "./ui/filter/scoring.js"
 import { selectedIndexAtom, selectedIssueIndexAtom } from "./ui/listSelection/atoms.js"
-import { activeModalAtom } from "./ui/modals/atoms.js"
 import { noticeAtom } from "./ui/notice/atoms.js"
 import { useFlashNotice } from "./ui/notice/useFlashNotice.js"
 import { canEditComment, useCommentMutations } from "./ui/comments/useCommentMutations.js"
@@ -85,6 +84,7 @@ import { useLinkNavigation } from "./hooks/useLinkNavigation.js"
 import { useCommandRegistry } from "./hooks/useCommandRegistry.js"
 import { useListSelectionStepping } from "./hooks/useListSelectionStepping.js"
 import { useModalSelectionMovers } from "./hooks/useModalSelectionMovers.js"
+import { useModalStack } from "./hooks/useModalStack.js"
 import { usePasteRouter } from "./hooks/usePasteRouter.js"
 import { useWorkspaceNavigation } from "./hooks/useWorkspaceNavigation.js"
 import { useDiffSelectionSync } from "./hooks/useDiffSelectionSync.js"
@@ -124,38 +124,7 @@ import { type DetailCommentsStatus, type DetailPlaceholderContent } from "./ui/D
 import { RetryProgress } from "./ui/FooterHints.js"
 import { LoadingLogoPane } from "./ui/LoadingLogo.js"
 import { Divider, fitCell, TextLine } from "./ui/primitives.js"
-import {
-	filterChangedFiles,
-	initialChangedFilesModalState,
-	initialCloseModalState,
-	initialCommandPaletteState,
-	initialCommentModalState,
-	initialDeleteCommentModalState,
-	initialFilterModalState,
-	initialLabelModalState,
-	initialMergeModalState,
-	initialModal,
-	initialOpenRepositoryModalState,
-	initialPullRequestStateModalState,
-	initialSubmitReviewModalState,
-	initialThemeModalState,
-	Modal,
-	submitReviewOptions,
-	type ChangedFilesModalState,
-	type CloseModalState,
-	type CommandPaletteState,
-	type CommentModalState,
-	type DeleteCommentModalState,
-	type FilterModalState,
-	type LabelModalState,
-	type MergeModalState,
-	type ModalState,
-	type ModalTag,
-	type OpenRepositoryModalState,
-	type PullRequestStateModalState,
-	type SubmitReviewModalState,
-	type ThemeModalState,
-} from "./ui/modals.js"
+import { filterChangedFiles, initialCommentModalState, submitReviewOptions } from "./ui/modals.js"
 import { commentsViewRowCount, orderCommentsForDisplay } from "./ui/CommentsPane.js"
 import { buildPullRequestListRows, pullRequestListRowIndex } from "./ui/PullRequestList.js"
 import { type RepositoryListItem } from "./ui/RepoList.js"
@@ -273,58 +242,48 @@ export const App = ({ systemThemeGeneration = 0 }: AppProps) => {
 	const setPullRequestComments = useAtomSet(pullRequestCommentsAtom)
 	const setPullRequestCommentsLoaded = useAtomSet(pullRequestCommentsLoadedAtom)
 	const setPullRequestDiffCache = useAtomSet(pullRequestDiffCacheAtom)
-	const [activeModal, setActiveModal] = useAtom(activeModalAtom)
 	const themeId = useAtomValue(themeIdAtom)
-	const closeActiveModal = () => setActiveModal(initialModal)
-	const labelModalActive = Modal.$is("Label")(activeModal)
-	const closeModalActive = Modal.$is("Close")(activeModal)
-	const pullRequestStateModalActive = Modal.$is("PullRequestState")(activeModal)
-	const mergeModalActive = Modal.$is("Merge")(activeModal)
-	const commentModalActive = Modal.$is("Comment")(activeModal)
-	const deleteCommentModalActive = Modal.$is("DeleteComment")(activeModal)
-	const commentThreadModalActive = Modal.$is("CommentThread")(activeModal)
-	const changedFilesModalActive = Modal.$is("ChangedFiles")(activeModal)
-	const filterModalActive = Modal.$is("Filter")(activeModal)
-	const submitReviewModalActive = Modal.$is("SubmitReview")(activeModal)
-	const themeModalActive = Modal.$is("Theme")(activeModal)
-	const commandPaletteActive = Modal.$is("CommandPalette")(activeModal)
-	const openRepositoryModalActive = Modal.$is("OpenRepository")(activeModal)
-	const labelModal: LabelModalState = labelModalActive ? activeModal : initialLabelModalState
-	const closeModal: CloseModalState = closeModalActive ? activeModal : initialCloseModalState
-	const pullRequestStateModal: PullRequestStateModalState = pullRequestStateModalActive ? activeModal : initialPullRequestStateModalState
-	const mergeModal: MergeModalState = mergeModalActive ? activeModal : initialMergeModalState
-	const commentModal: CommentModalState = commentModalActive ? activeModal : initialCommentModalState
-	const deleteCommentModal: DeleteCommentModalState = deleteCommentModalActive ? activeModal : initialDeleteCommentModalState
-	const changedFilesModal: ChangedFilesModalState = changedFilesModalActive ? activeModal : initialChangedFilesModalState
-	const filterModal: FilterModalState = filterModalActive ? activeModal : initialFilterModalState
-	const submitReviewModal: SubmitReviewModalState = submitReviewModalActive ? activeModal : initialSubmitReviewModalState
-	const themeModal: ThemeModalState = themeModalActive ? activeModal : initialThemeModalState
-	const commandPalette: CommandPaletteState = commandPaletteActive ? activeModal : initialCommandPaletteState
-	const openRepositoryModal: OpenRepositoryModalState = openRepositoryModalActive ? activeModal : initialOpenRepositoryModalState
-	const makeModalSetter =
-		<Tag extends Exclude<ModalTag, "None">>(tag: Tag) =>
-		(next: ModalState<Tag> | ((prev: ModalState<Tag>) => ModalState<Tag>)) =>
-			setActiveModal((current) => {
-				const ctor = Modal[tag] as unknown as (args: ModalState<Tag>) => Modal
-				if (typeof next === "function") {
-					const updater = next as (prev: ModalState<Tag>) => ModalState<Tag>
-					if (current._tag !== tag) return current
-					return ctor(updater(current as unknown as ModalState<Tag>))
-				}
-				return ctor(next)
-			})
-	const setLabelModal = makeModalSetter("Label")
-	const setPullRequestStateModal = makeModalSetter("PullRequestState")
-	const setMergeModal = makeModalSetter("Merge")
-	const setCommentModal = makeModalSetter("Comment")
-	const setDeleteCommentModal = makeModalSetter("DeleteComment")
-	const setCommentThreadModal = makeModalSetter("CommentThread")
-	const setChangedFilesModal = makeModalSetter("ChangedFiles")
-	const setFilterModal = makeModalSetter("Filter")
-	const setSubmitReviewModal = makeModalSetter("SubmitReview")
-	const setThemeModal = makeModalSetter("Theme")
-	const setCommandPalette = makeModalSetter("CommandPalette")
-	const setOpenRepositoryModal = makeModalSetter("OpenRepository")
+	const {
+		activeModal,
+		closeActiveModal,
+		labelModalActive,
+		closeModalActive,
+		pullRequestStateModalActive,
+		mergeModalActive,
+		commentModalActive,
+		deleteCommentModalActive,
+		commentThreadModalActive,
+		changedFilesModalActive,
+		filterModalActive,
+		submitReviewModalActive,
+		themeModalActive,
+		commandPaletteActive,
+		openRepositoryModalActive,
+		labelModal,
+		closeModal,
+		pullRequestStateModal,
+		mergeModal,
+		commentModal,
+		deleteCommentModal,
+		changedFilesModal,
+		filterModal,
+		submitReviewModal,
+		themeModal,
+		commandPalette,
+		openRepositoryModal,
+		setLabelModal,
+		setPullRequestStateModal,
+		setMergeModal,
+		setCommentModal,
+		setDeleteCommentModal,
+		setCommentThreadModal,
+		setChangedFilesModal,
+		setFilterModal,
+		setSubmitReviewModal,
+		setThemeModal,
+		setCommandPalette,
+		setOpenRepositoryModal,
+	} = useModalStack()
 	const setPullRequestOverrides = useAtomSet(pullRequestOverridesAtom)
 	const setIssueOverrides = useAtomSet(issueOverridesAtom)
 	const setRecentlyCompletedPullRequests = useAtomSet(recentlyCompletedPullRequestsAtom)
