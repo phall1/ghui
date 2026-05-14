@@ -129,7 +129,7 @@ export const PullRequestDiffPane = ({
 
 	if (!diffState || diffState._tag === "Loading") {
 		return (
-			<box height={height} flexDirection="column">
+			<box width={paneWidth} height={height} flexDirection="column">
 				<DiffPaneHeader pullRequest={pullRequest} paneWidth={paneWidth} />
 				<Divider width={paneWidth} />
 				<LoadingPane content={{ title: `${loadingIndicator} Loading diff`, hint: "Fetching patch from GitHub" }} width={paneWidth} height={Math.max(1, height - 2)} />
@@ -139,7 +139,7 @@ export const PullRequestDiffPane = ({
 
 	if (diffState._tag === "Error") {
 		return (
-			<box height={height} flexDirection="column">
+			<box width={paneWidth} height={height} flexDirection="column">
 				<PaddedRow>
 					<PlainLine text={`#${pullRequest.number} ${shortRepoName(pullRequest.repository)} diff`} fg={colors.count} bold />
 				</PaddedRow>
@@ -203,7 +203,7 @@ export const PullRequestDiffPane = ({
 	}
 
 	return (
-		<box height={height} flexDirection="column">
+		<box width={paneWidth} height={height} flexDirection="column">
 			<DiffPaneHeader pullRequest={pullRequest} paneWidth={paneWidth} />
 			<Divider width={paneWidth} />
 			<scrollbox ref={scrollRef} focusable={false} flexGrow={1} scrollY scrollX={false} onMouseDown={handleDiffMouseDown}>
