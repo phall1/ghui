@@ -10,6 +10,16 @@ import { groupDiffCommentThreads, isLocalDiffComment } from "../ui/diff/comments
 
 type LoadStatus = "loading" | "ready"
 
+// Upper bound for the diff fetch round-trip. Without this, an
+// AtomRegistry.getResult call that suspends on a Waiting AsyncResult
+// can dangle indefinitely if the family-created atom is interrupted /
+// GC'd before settling — leaving `pullRequestDiffCacheAtom` stuck in
+// `Loading` forever and the "Loading diff" pane wedged. The early-
+// return on `existing._tag === "Loading"` then blocks recovery without
+// a manual reload. Racing against a setTimeout guarantees we always
+// transition out of Loading.
+const DIFF_FETCH_TIMEOUT_MS = 30_000
+
 interface AtomRegistryShape {
 	get<T>(atom: Atom.Atom<T>): T
 	refresh(atom: unknown): void
@@ -91,7 +101,12 @@ export const useDiffLoader = ({
 		setPullRequestDiffCache((current) => ({ ...current, [key]: PullRequestDiffState.Loading() }))
 		const atom = pullRequestDiffAtom(pullRequestRevisionAtomKey(pullRequest))
 		if (force) registry.refresh(atom)
-		void Effect.runPromise(AtomRegistry.getResult(registry as never, atom, { suspendOnWaiting: true }))
+		const fetchPromise = Effect.runPromise(AtomRegistry.getResult(registry as never, atom, { suspendOnWaiting: true }))
+		let timeoutId: ReturnType<typeof globalThis.setTimeout> | null = null
+		const timeoutPromise = new Promise<never>((_, reject) => {
+			timeoutId = globalThis.setTimeout(() => reject(new Error(`Diff load timed out after ${DIFF_FETCH_TIMEOUT_MS / 1000}s — press r to retry`)), DIFF_FETCH_TIMEOUT_MS)
+		})
+		void Promise.race([fetchPromise, timeoutPromise])
 			.then((patch) => {
 				setPullRequestDiffCache((current) => ({
 					...current,
@@ -104,6 +119,9 @@ export const useDiffLoader = ({
 					[key]: PullRequestDiffState.Error({ error: errorMessage(error) }),
 				}))
 				flashNotice(errorMessage(error))
+			})
+			.finally(() => {
+				if (timeoutId !== null) globalThis.clearTimeout(timeoutId)
 			})
 	}
 
