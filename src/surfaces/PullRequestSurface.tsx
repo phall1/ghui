@@ -1,7 +1,15 @@
 import type { DiffRenderable, ScrollBoxRenderable } from "@opentui/core"
 import type { ComponentProps, MutableRefObject } from "react"
 import type { DiffCommentSide, IssueItem, PullRequestComment, PullRequestItem, PullRequestReviewComment } from "../domain.js"
-import type { DiffView, DiffWhitespaceMode, DiffWrapMode, PullRequestDiffState, StackedDiffCommentAnchor, StackedDiffFilePatch } from "../ui/diff.js"
+import {
+	stackedDiffFileIndexAtLine,
+	type DiffView,
+	type DiffWhitespaceMode,
+	type DiffWrapMode,
+	type PullRequestDiffState,
+	type StackedDiffCommentAnchor,
+	type StackedDiffFilePatch,
+} from "../ui/diff.js"
 import type { ThemeId } from "../ui/colors.js"
 import { colors } from "../ui/colors.js"
 import { ActiveFilterBar, ACTIVE_FILTER_BAR_HEIGHT } from "../ui/ActiveFilterBar.js"
@@ -204,6 +212,23 @@ export const PullRequestSurface = (props: PullRequestSurfaceProps) => {
 			const railRowBelow = diffChromeOffset + (file.headerLine + 1) - scrollLine
 			if (railRowBelow >= diffChromeOffset && railRowBelow < wideBodyHeight) fileDividerRailRows.push(railRowBelow)
 		}
+		// The diff pane overlays a "sticky" file header at viewport rows 2-3
+		// once any content has scrolled. The sticky always paints one divider
+		// — at row 3 normally (header above), or at row 2 when the next file
+		// is exactly one line below the scroll (divider above the incoming
+		// header). Mirror that here so the rail joins it even after the
+		// non-sticky divider for the current file has scrolled off-screen.
+		const stickyRailRow =
+			stackedDiffFiles.length > 0
+				? (() => {
+						const idx = stackedDiffFileIndexAtLine(stackedDiffFiles, scrollLine)
+						const safe = idx >= 0 ? idx : 0
+						const incoming = stackedDiffFiles[safe + 1]
+						const incomingDistance = incoming ? incoming.headerLine - scrollLine : Number.POSITIVE_INFINITY
+						return incomingDistance === 1 ? 2 : 3
+					})()
+				: null
+		if (stickyRailRow !== null && stickyRailRow >= diffChromeOffset && stickyRailRow < wideBodyHeight) fileDividerRailRows.push(stickyRailRow)
 		const rightSideRows = new Set<number>([...diffChromeRows, ...fileDividerRailRows])
 		const allRailRows = new Set<number>([...panelRows, ...rightSideRows])
 		const railJunctions = Array.from(allRailRows).map((row) => {
