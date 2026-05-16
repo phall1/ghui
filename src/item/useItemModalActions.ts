@@ -8,7 +8,7 @@ interface SubmitReviewOption {
 	readonly title: string
 }
 
-export interface UsePullRequestModalActionsInput {
+export interface UseItemModalActionsInput {
 	readonly pullRequestStateModal: PullRequestStateModalState
 	readonly setPullRequestStateModal: (next: PullRequestStateModalState | ((prev: PullRequestStateModalState) => PullRequestStateModalState)) => void
 	readonly closeModal: CloseModalState
@@ -43,7 +43,7 @@ export interface UsePullRequestModalActionsInput {
 	readonly removeIssueLabel: (input: { repository: string; number: number; label: string }) => Promise<unknown>
 }
 
-export interface PullRequestModalActions {
+export interface ItemModalActions {
 	readonly movePullRequestStateSelection: () => void
 	readonly confirmPullRequestStateChange: () => void
 	readonly confirmCloseModal: () => void
@@ -51,12 +51,13 @@ export interface PullRequestModalActions {
 	readonly confirmSubmitReview: () => void
 }
 
-/**
- * Confirmation handlers for the close / draft-toggle / label / submit-review
- * modals. Each handler is small but closes over many cooperating atoms +
- * service calls; bundling here keeps App.tsx free of ~120 LOC.
- */
-export const usePullRequestModalActions = (input: UsePullRequestModalActionsInput): PullRequestModalActions => {
+// Confirmation handlers for the close / draft-toggle / label / submit-review
+// modals. Three of the four are item-agnostic — close and label work for
+// both PRs and Issues; submit-review and draft-toggle are PR-only. The hook
+// receives both PR and Issue dependencies and branches on
+// `activeWorkspaceSurface` / `closeModal.kind`. Renamed from
+// `usePullRequestModalActions` — the original name implied PR-only.
+export const useItemModalActions = (input: UseItemModalActionsInput): ItemModalActions => {
 	const {
 		pullRequestStateModal,
 		setPullRequestStateModal,

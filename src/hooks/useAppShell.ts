@@ -60,7 +60,7 @@ import { useClampedIndex } from "../ui/useClampedIndex.js"
 import { useCommandHandoffs } from "./useCommandHandoffs.js"
 import { useDiffCommentDerivations } from "./useDiffCommentDerivations.js"
 import { useDiffCommentNavigator } from "./useDiffCommentNavigator.js"
-import { usePullRequestModalActions } from "./usePullRequestModalActions.js"
+import { useItemModalActions } from "../item/useItemModalActions.js"
 import { repositoryWorkspaceSurfaces, userWorkspaceSurfaces, type WorkspaceSurface } from "../workspaceSurfaces.js"
 import { detectedRepository, mockRepositoryCatalog, mockWorkspacePreferencesPath } from "../services/runtime.js"
 
@@ -738,7 +738,7 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 			flashNotice,
 		})
 
-	const { movePullRequestStateSelection, confirmPullRequestStateChange, confirmCloseModal, toggleLabelAtIndex, confirmSubmitReview } = usePullRequestModalActions({
+	const { movePullRequestStateSelection, confirmPullRequestStateChange, confirmCloseModal, toggleLabelAtIndex, confirmSubmitReview } = useItemModalActions({
 		pullRequestStateModal,
 		setPullRequestStateModal,
 		closeModal,
