@@ -4,35 +4,24 @@ import { Cause } from "effect"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 import type { AppCommand } from "../commands.js"
-import { type IssueItem, type LoadStatus } from "../domain.js"
+import { type LoadStatus } from "../domain.js"
 import { errorMessage } from "../errors.js"
-import { issueViewCacheKey } from "../issueViews.js"
 import { parseRepositoryInput, viewCacheKey } from "../pullRequestViews.js"
 
 import { colors } from "../ui/colors.js"
-import { favoriteRepositoriesAtom, recentRepositoriesAtom, repoRollupAtom, selectedRepositoryIndexAtom, workspaceSurfaceAtom } from "../workspace/atoms.js"
+import { workspaceSurfaceAtom } from "../workspace/atoms.js"
+import { useRepoSurface } from "../surfaces/repo/useRepoSurface.js"
 import { computeLayout, diffFilePanelWidthFor } from "../workspace/layout.js"
 import { AUTO_REFRESH_JITTER_MS, FOCUS_RETURN_REFRESH_MIN_MS, FOCUSED_IDLE_REFRESH_MS, getDetailPlaceholderContent, reviewStatusAfterSubmit } from "../workspace/placeholders.js"
 import { computeModalLayouts } from "../workspace/modalLayouts.js"
 import { computeWorkspaceDerivations } from "../workspace/derivations.js"
 import { computeFooterProps } from "../workspace/footerProps.js"
 import { computeHeaderDerivations, groupIndexAt } from "../workspace/headerDerivations.js"
-import { buildRepositoryItems } from "../workspace/repositoryItems.js"
 import { useWorkspacePreferencesPersistence } from "../workspace/useWorkspacePreferencesPersistence.js"
 import { commentsRowCountAtom, orderedCommentsAtom, pullRequestCommentsAtom, pullRequestCommentsLoadedAtom, selectedOrderedCommentAtom } from "../ui/comments/atoms.js"
-import {
-	activeIssueViewAtom,
-	hasMoreIssuesAtom,
-	issueLoadAtom,
-	issueQueueLoadCacheAtom,
-	issuesAtom,
-	issueViewRepository,
-	loadedIssueCountAtom,
-	loadMoreIssueRowSelectedAtom,
-} from "../ui/issues/atoms.js"
+import { useIssueSurface } from "../surfaces/issue/useIssueSurface.js"
 import { filterDraftAtom, filterModeAtom, filterQueryAtom } from "../ui/filter/atoms.js"
-import { repositoryFilterScore } from "../ui/filter/scoring.js"
-import { selectedIndexAtom, selectedIssueIndexAtom } from "../ui/listSelection/atoms.js"
+import { selectedIndexAtom } from "../ui/listSelection/atoms.js"
 import { noticeAtom } from "../ui/notice/atoms.js"
 import { useFlashNotice } from "../ui/notice/useFlashNotice.js"
 import { useCommentMutations } from "../ui/comments/useCommentMutations.js"
@@ -44,7 +33,6 @@ import {
 	groupStartsAtom,
 	hasMorePullRequestsAtom,
 	loadMoreRowSelectedAtom,
-	issueOverridesAtom,
 	loadedPullRequestCountAtom,
 	pullRequestDetailKey,
 	pullRequestLoadAtom,
@@ -65,9 +53,7 @@ import {
 import { useFocusReturnRefresh } from "./useFocusReturnRefresh.js"
 import { useGitHubActions } from "./useGitHubActions.js"
 import { useImperativeActions } from "./useImperativeActions.js"
-import { useIssuesLoadMore } from "./useIssuesLoadMore.js"
 import { useScrollRefs } from "./useScrollRefs.js"
-import { useIssueListDerivations } from "./useIssueListDerivations.js"
 import { useCommentsLoader } from "./useCommentsLoader.js"
 import { useCommentsViewActions } from "./useCommentsViewActions.js"
 import { useDiffLoader } from "./useDiffLoader.js"
@@ -78,7 +64,7 @@ import { useListSelectionStepping } from "./useListSelectionStepping.js"
 import { useModalSelectionMovers } from "./useModalSelectionMovers.js"
 import { useAppKeymap } from "./useAppKeymap.js"
 import { useModalStack } from "./useModalStack.js"
-import { usePullRequestMutations } from "./usePullRequestMutations.js"
+import { useItemMutations } from "../item/useItemMutations.js"
 import { usePullRequestRefresh } from "./usePullRequestRefresh.js"
 import { useSelectionDerivations } from "./useSelectionDerivations.js"
 import { useStartupTasks } from "./useStartupTasks.js"
@@ -90,7 +76,6 @@ import { useViewModeState } from "./useViewModeState.js"
 import { useLoadMore } from "../ui/pullRequests/useLoadMore.js"
 import { useFilterModal } from "../ui/filter/useFilterModal.js"
 import { useRefreshCompletionToast } from "../ui/pullRequests/useRefreshCompletionToast.js"
-import { useRepositoryDetails } from "../ui/pullRequests/useRepositoryDetails.js"
 import { DIFF_FILE_PANEL_AUTO_THRESHOLD, diffFilePanelOverrideAtom, selectedDiffKeyAtom, selectedDiffStateAtom } from "../ui/diff/atoms.js"
 import { diffCommentThreadMapKey } from "../ui/diff/comments.js"
 import { useDiffLineColors } from "../ui/diff/useDiffLineColors.js"
@@ -101,7 +86,6 @@ import { useThemeModal } from "../ui/theme/useThemeModal.js"
 import { useMergeFlow } from "../ui/merge/useMergeFlow.js"
 import { initialCommentModalState, submitReviewOptions } from "../ui/modals.js"
 import { buildPullRequestListRows } from "../ui/PullRequestList.js"
-import { type RepositoryListItem } from "../ui/RepoList.js"
 import { useClampedIndex } from "../ui/useClampedIndex.js"
 import { useScrollFollowSelected } from "../ui/useScrollFollowSelected.js"
 import { useScrollPersistence } from "../ui/useScrollPersistence.js"
@@ -135,7 +119,6 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 	const [filterQuery, setFilterQuery] = useAtom(filterQueryAtom)
 	const [filterDraft, setFilterDraft] = useAtom(filterDraftAtom)
 	const [filterMode, setFilterMode] = useAtom(filterModeAtom)
-	const [activeIssueView, setActiveIssueView] = useAtom(activeIssueViewAtom)
 	const {
 		detailFullView,
 		setDetailFullView,
@@ -212,7 +195,6 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 		setOpenRepositoryModal,
 	} = useModalStack()
 	const setPullRequestOverrides = useAtomSet(pullRequestOverridesAtom)
-	const setIssueOverrides = useAtomSet(issueOverridesAtom)
 	const setRecentlyCompletedPullRequests = useAtomSet(recentlyCompletedPullRequestsAtom)
 	const retryProgress = useAtomValue(retryProgressAtom)
 	const [startupLoadComplete, setStartupLoadComplete] = useState(false)
@@ -301,74 +283,79 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 
 	const pullRequestLoad = useAtomValue(pullRequestLoadAtom)
 	const [activeWorkspaceSurface, setActiveWorkspaceSurface] = useAtom(workspaceSurfaceAtom)
-	const [selectedRepositoryIndex, setSelectedRepositoryIndex] = useAtom(selectedRepositoryIndexAtom)
-	const [favoriteRepositories, setFavoriteRepositories] = useAtom(favoriteRepositoriesAtom)
-	const [recentRepositories, setRecentRepositories] = useAtom(recentRepositoriesAtom)
-	const repoRollup = useAtomValue(repoRollupAtom)
-	const setRepoRollup = useAtomSet(repoRollupAtom)
-	const issuesResult = useAtomValue(issuesAtom)
-	const issueLoad = useAtomValue(issueLoadAtom)
-	const hasMoreIssues = useAtomValue(hasMoreIssuesAtom)
-	const loadedIssueCount = useAtomValue(loadedIssueCountAtom)
-	const loadMoreIssueRowSelected = useAtomValue(loadMoreIssueRowSelectedAtom)
-	const setIssueQueueLoadCache = useAtomSet(issueQueueLoadCacheAtom)
-	const [selectedIssueIndex, setSelectedIssueIndex] = useAtom(selectedIssueIndexAtom)
 	const pullRequests = useAtomValue(displayedPullRequestsAtom)
 	const pullRequestStatus = useAtomValue(pullRequestStatusAtom)
 	const pullRequestFetchInFlight = pullRequestResult.waiting
 	const selectedRepository = useAtomValue(selectedRepositoryAtom)
-	const selectedIssueRepository = issueViewRepository(activeIssueView)
 	const pullRequestAuthorFilterActive = selectedRepository !== null && activeView._tag === "Queue" && activeView.mode === "authored"
-	const issueAuthorFilterActive = selectedIssueRepository !== null && activeIssueView._tag === "Queue" && activeIssueView.mode === "authored"
 	const pullRequestActiveFilterLabel = pullRequestAuthorFilterActive ? "author:@me" : null
-	const issueActiveFilterLabel = issueAuthorFilterActive ? "author:@me" : null
 	const isInitialLoading = !startupLoadComplete && pullRequestStatus === "loading" && pullRequests.length === 0
 	const pullRequestError = AsyncResult.isFailure(pullRequestResult) ? errorMessage(Cause.squash(pullRequestResult.cause)) : null
-	const issueOverrides = useAtomValue(issueOverridesAtom)
 	const visibleFilterText = filterMode ? filterDraft : filterQuery
 	const username = AsyncResult.isSuccess(usernameResult) ? usernameResult.value : null
-	const rawIssues: readonly IssueItem[] = issueLoad?.data ?? []
-	const showIssueRepositoryGroups = selectedRepository === null
-	// Reorder so the array order matches IssueList's grouped display. Otherwise
-	// j/k stepping jumps across groups, since groupBy reorders alphabetically.
-	// Fold in optimistically-closed orphans so freshly-closed issues stay
-	// visible (marked closed) until the next server refresh removes them.
-	const { allIssues, issues, issuesStatus, issuesError, selectedIssue, selectedIssueRowIndex } = useIssueListDerivations({
-		rawIssues,
-		issueOverrides,
-		showIssueRepositoryGroups,
-		activeWorkspaceSurface,
-		visibleFilterText,
+
+	const issueSurface = useIssueSurface({
 		selectedRepository,
-		issuesResult,
-		selectedIssueIndex,
-		loadMoreIssueRowSelected,
+		username,
+		visibleFilterText,
+		activeWorkspaceSurface,
+		detailFullView,
+		diffFullView,
+		commentsViewActive,
+		refreshGenerationRef,
+		flashNotice,
+		issueListScrollRef,
+		issueListScrollPersistedRef,
 	})
+	const {
+		issues,
+		allIssues,
+		issueLoad,
+		issuesStatus,
+		issuesError,
+		selectedIssue,
+		selectedIssueIndex,
+		setSelectedIssueIndex,
+		activeIssueView,
+		setActiveIssueView,
+		hasMoreIssues,
+		loadedIssueCount,
+		loadMoreIssueRowSelected,
+		issueLoadMoreSlotAvailable,
+		issueActiveFilterLabel,
+		setIssueOverrides,
+		showIssueRepositoryGroups,
+		loadMoreIssues,
+		isLoadingMoreIssues,
+	} = issueSurface
 	pullRequestStatusRef.current = pullRequestStatus
 
 	const visibleGroups = useAtomValue(visibleGroupsAtom)
 	const visiblePullRequests = useAtomValue(visiblePullRequestsAtom)
 	const selectedPullRequest = useAtomValue(selectedPullRequestAtom)
 	const workspaceTabSurfaces: readonly WorkspaceSurface[] = selectedRepository ? repositoryWorkspaceSurfaces : userWorkspaceSurfaces
-	const allRepositoryItems = useMemo(
-		(): readonly RepositoryListItem[] =>
-			buildRepositoryItems({
-				recentRepositories,
-				favoriteRepositories,
-				detectedRepository,
-				repoRollup,
-				pullRequests,
-				allIssues,
-				mockRepositoryCatalog,
-			}),
-		[favoriteRepositories, recentRepositories, pullRequests, allIssues, repoRollup],
-	)
-	const repositoryItems = useMemo(
-		() => (activeWorkspaceSurface === "repos" ? allRepositoryItems.filter((repository) => repositoryFilterScore(repository, visibleFilterText) !== null) : allRepositoryItems),
-		[activeWorkspaceSurface, allRepositoryItems, visibleFilterText],
-	)
-	const selectedRepositoryItem = repositoryItems[Math.max(0, Math.min(selectedRepositoryIndex, repositoryItems.length - 1))] ?? null
-	const selectedRepositoryDetails = useRepositoryDetails(selectedRepositoryItem?.repository ?? null)
+	const repo = useRepoSurface({
+		pullRequests,
+		allIssues,
+		visibleFilterText,
+		activeWorkspaceSurface,
+		detectedRepository,
+		mockRepositoryCatalog,
+		flashNotice,
+	})
+	const {
+		repositoryItems,
+		selectedRepositoryItem,
+		selectedRepositoryDetails,
+		selectedRepositoryIndex,
+		setSelectedRepositoryIndex,
+		favoriteRepositories,
+		setFavoriteRepositories,
+		recentRepositories,
+		setRecentRepositories,
+		setRepoRollup,
+	} = repo
+	const { toggleFavoriteRepository, removeSelectedRepository } = repo.actions
 	const pullRequestComments = useAtomValue(pullRequestCommentsAtom)
 	const activeViews = useAtomValue(activeViewsAtom)
 	const currentQueueCacheKey = viewCacheKey(activeView)
@@ -386,17 +373,6 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 		refreshGenerationRef,
 		flashNotice,
 		setQueueLoadCache,
-	})
-	const currentIssueCacheKey = issueViewCacheKey(activeIssueView)
-	const { loadMoreIssues, isLoadingMoreIssues } = useIssuesLoadMore({
-		activeIssueView,
-		currentIssueCacheKey,
-		issueLoad,
-		hasMoreIssues,
-		username,
-		refreshGenerationRef,
-		flashNotice,
-		setIssueQueueLoadCache,
 	})
 	const pullRequestListRows = useMemo(
 		() =>
@@ -477,7 +453,7 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 			setQueueSelection((current) => ({ ...current, [currentQueueCacheKey]: index }))
 		}
 	}
-	const { updatePullRequest, updateIssue, markPullRequestCompleted, restoreOptimisticPullRequest } = usePullRequestMutations({
+	const { updatePullRequest, updateIssue, markPullRequestCompleted, restoreOptimisticPullRequest } = useItemMutations({
 		pullRequests,
 		issues,
 		setPullRequestOverrides,
@@ -538,16 +514,7 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 		refreshPullRequestsAtom,
 	})
 
-	const {
-		switchViewTo,
-		switchQueueMode,
-		switchWorkspaceSurface,
-		cycleWorkspaceSurface,
-		goUpWorkspaceScope,
-		openSelectedRepository,
-		toggleFavoriteRepository,
-		removeSelectedRepository,
-	} = useWorkspaceNavigation({
+	const { switchViewTo, switchQueueMode, switchWorkspaceSurface, cycleWorkspaceSurface, goUpWorkspaceScope } = useWorkspaceNavigation({
 		registry,
 		activeView,
 		activeViews,
@@ -568,19 +535,18 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 		cancelRefreshToast,
 		filterQuery,
 		setRecentlyCompletedPullRequests,
-		setRecentRepositories,
-		setFavoriteRepositories,
 		setActiveWorkspaceSurface,
 		activeWorkspaceSurface,
 		workspaceTabSurfaces,
 		selectedRepository,
-		selectedRepositoryItem,
-		detectedRepository,
 		refreshGenerationRef,
 		resetHydration,
 		resetLoadingMore,
-		flashNotice,
 	})
+	const openSelectedRepository = () => {
+		if (!selectedRepositoryItem) return
+		switchViewTo({ _tag: "Repository", repository: selectedRepositoryItem.repository })
+	}
 	const { openFilterModal, moveFilterSelection, applySelectedFilter } = useFilterModal({
 		activeWorkspaceSurface,
 		activeView,
@@ -608,9 +574,6 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 
 	const loadMoreSlotAvailable = visibleHasMorePullRequests && visiblePullRequests.length > 0
 	useClampedIndex(visiblePullRequests.length + (loadMoreSlotAvailable ? 1 : 0), setSelectedIndex)
-	const issueLoadMoreSlotAvailable = hasMoreIssues && issues.length > 0
-	useClampedIndex(issues.length + (issueLoadMoreSlotAvailable ? 1 : 0), setSelectedIssueIndex)
-	useClampedIndex(repositoryItems.length, setSelectedRepositoryIndex)
 
 	useWorkspacePreferencesPersistence({
 		username,
@@ -642,14 +605,12 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 	})
 
 	useScrollFollowSelected(prListScrollRef, selectedPullRequestRowIndex)
-	useScrollFollowSelected(issueListScrollRef, issues.length === 0 ? null : selectedIssueRowIndex)
 
 	// Keep list scroll position when toggling between surfaces. Each list's
 	// scrollbox remounts on surface switch; without persistence it starts at
 	// scrollTop=0 and useScrollFollowSelected snaps it back to the selected
 	// row — reads as a jump.
 	useScrollPersistence(prListScrollRef, prListScrollPersistedRef, activeWorkspaceSurface === "pullRequests" && !detailFullView && !diffFullView && !commentsViewActive)
-	useScrollPersistence(issueListScrollRef, issueListScrollPersistedRef, activeWorkspaceSurface === "issues" && !detailFullView && !diffFullView && !commentsViewActive)
 
 	useDiffSelectionSync({
 		selectedIndex,

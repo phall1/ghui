@@ -2,7 +2,7 @@ import type { IssueItem, PullRequestItem } from "../domain.js"
 import type { RepositoryListItem } from "../ui/RepoList.js"
 import type { RepoRollupRow } from "../services/CacheService.js"
 
-interface CatalogEntry {
+export interface CatalogEntry {
 	readonly repository: string
 	readonly description: string | null
 }

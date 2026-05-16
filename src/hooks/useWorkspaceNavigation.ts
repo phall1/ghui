@@ -1,11 +1,12 @@
 import type { MutableRefObject } from "react"
 import type * as Atom from "effect/unstable/reactivity/Atom"
+import { useAtomSet } from "@effect/atom-react"
 import type { PullRequestItem } from "../domain.js"
 import { type PullRequestView, nextView, viewCacheKey, viewEquals } from "../pullRequestViews.js"
 import { issueViewForPullRequestView } from "../viewSync.js"
-import type { RepositoryListItem } from "../ui/RepoList.js"
 import { type WorkspaceSurface, nextWorkspaceSurface } from "../workspaceSurfaces.js"
 import { queueSelectionAtom } from "../ui/pullRequests/atoms.js"
+import { recentRepositoriesAtom } from "../workspace/atoms.js"
 import type { IssueView } from "../issueViews.js"
 
 interface AtomRegistryShape {
@@ -33,18 +34,13 @@ export interface UseWorkspaceNavigationInput {
 	readonly cancelRefreshToast: () => void
 	readonly filterQuery: string
 	readonly setRecentlyCompletedPullRequests: (next: Record<string, PullRequestItem>) => void
-	readonly setRecentRepositories: (next: (prev: readonly string[]) => readonly string[]) => void
-	readonly setFavoriteRepositories: (next: (prev: Readonly<Record<string, true>>) => Readonly<Record<string, true>>) => void
 	readonly setActiveWorkspaceSurface: (next: WorkspaceSurface) => void
 	readonly activeWorkspaceSurface: WorkspaceSurface
 	readonly workspaceTabSurfaces: readonly WorkspaceSurface[]
 	readonly selectedRepository: string | null
-	readonly selectedRepositoryItem: RepositoryListItem | null
-	readonly detectedRepository: string | null
 	readonly refreshGenerationRef: MutableRefObject<number>
 	readonly resetHydration: () => void
 	readonly resetLoadingMore: () => void
-	readonly flashNotice: (msg: string) => void
 }
 
 export interface WorkspaceNavigation {
@@ -53,16 +49,14 @@ export interface WorkspaceNavigation {
 	readonly switchWorkspaceSurface: (surface: WorkspaceSurface) => void
 	readonly cycleWorkspaceSurface: (delta: 1 | -1) => void
 	readonly goUpWorkspaceScope: () => boolean
-	readonly openSelectedRepository: () => void
-	readonly toggleFavoriteRepository: () => void
-	readonly removeSelectedRepository: () => void
 }
 
 /**
- * Bundles the navigation actions that move the user between PR views,
- * surfaces, and repos. Each action coordinates many cooperating atoms
- * (selection, filter, recently-completed, scope mirror, etc.) — keeping
- * them together is what makes the contract maintainable.
+ * Bundles the cross-surface navigation actions that move the user between
+ * PR views, queue modes, and workspace surfaces. Repo-specific actions
+ * (open / favorite / remove) live in `useRepoSurface`; the `Recents` atom
+ * is read directly here because `switchViewTo` needs to update it when
+ * navigating into a repository view.
  */
 export const useWorkspaceNavigation = (input: UseWorkspaceNavigationInput): WorkspaceNavigation => {
 	const {
@@ -86,19 +80,15 @@ export const useWorkspaceNavigation = (input: UseWorkspaceNavigationInput): Work
 		cancelRefreshToast,
 		filterQuery,
 		setRecentlyCompletedPullRequests,
-		setRecentRepositories,
-		setFavoriteRepositories,
 		setActiveWorkspaceSurface,
 		activeWorkspaceSurface,
 		workspaceTabSurfaces,
 		selectedRepository,
-		selectedRepositoryItem,
-		detectedRepository,
 		refreshGenerationRef,
 		resetHydration,
 		resetLoadingMore,
-		flashNotice,
 	} = input
+	const setRecentRepositories = useAtomSet(recentRepositoriesAtom)
 
 	const switchViewTo = (view: PullRequestView) => {
 		if (viewEquals(view, activeView)) return
@@ -150,45 +140,11 @@ export const useWorkspaceNavigation = (input: UseWorkspaceNavigationInput): Work
 		return true
 	}
 
-	const openSelectedRepository = () => {
-		if (!selectedRepositoryItem) return
-		switchViewTo({ _tag: "Repository", repository: selectedRepositoryItem.repository })
-	}
-
-	const toggleFavoriteRepository = () => {
-		if (!selectedRepositoryItem) return
-		const repository = selectedRepositoryItem.repository
-		setFavoriteRepositories((current) => {
-			if (current[repository]) {
-				const next = { ...current }
-				delete next[repository]
-				return next
-			}
-			return { ...current, [repository]: true }
-		})
-	}
-
-	const removeSelectedRepository = () => {
-		if (!selectedRepositoryItem) return
-		const repository = selectedRepositoryItem.repository
-		setFavoriteRepositories((current) => {
-			if (!current[repository]) return current
-			const next = { ...current }
-			delete next[repository]
-			return next
-		})
-		setRecentRepositories((current) => current.filter((item) => item !== repository))
-		flashNotice(repository === detectedRepository ? `Removed saved state for ${repository}; current repo stays pinned` : `Removed ${repository} from tracked repositories`)
-	}
-
 	return {
 		switchViewTo,
 		switchQueueMode,
 		switchWorkspaceSurface,
 		cycleWorkspaceSurface,
 		goUpWorkspaceScope,
-		openSelectedRepository,
-		toggleFavoriteRepository,
-		removeSelectedRepository,
 	}
 }
