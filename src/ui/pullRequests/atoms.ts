@@ -12,7 +12,8 @@ import type {
 	RepositoryDetails,
 	RepositoryMergeMethods,
 } from "../../domain.js"
-import type { ItemListInput } from "../../item.js"
+import { devLog } from "../../devLog.js"
+import { type ItemListInput, searchQualifier } from "../../item.js"
 import { mergeCachedDetails } from "../../pullRequestCache.js"
 export { appendPullRequestPage, nextLoadAfterPage } from "../../pullRequestCache.js"
 import type { PullRequestLoad } from "../../pullRequestLoad.js"
@@ -82,16 +83,27 @@ export const pullRequestsAtom = githubRuntime
 			const cacheService = yield* CacheService
 			const view = get(activeViewAtom)
 			const cacheKey = viewCacheKey(view)
+			devLog("pullRequestsAtom:start", { view, cacheKey })
 			const cacheUsername = view._tag === "Repository" ? null : yield* github.getAuthenticatedUser().pipe(Effect.catch(() => Effect.succeed(null)))
 			const cacheViewer = cacheViewerFor(view, cacheUsername)
+			devLog("pullRequestsAtom:viewer", { cacheUsername, cacheViewer })
 			if (cacheViewer) {
 				const cachedLoad = yield* cacheService.readQueue(cacheViewer, view).pipe(Effect.catch(() => Effect.succeed(null)))
+				devLog("pullRequestsAtom:sqliteRead", {
+					cacheKey,
+					hit: cachedLoad !== null,
+					count: cachedLoad?.data.length ?? 0,
+					storedView: cachedLoad?.view,
+					sampleAuthors: cachedLoad?.data.slice(0, 5).map((pr) => pr.author),
+				})
 				if (cachedLoad) {
 					yield* Atom.update(queueLoadCacheAtom, (cache) => (cache[cacheKey] ? cache : trimQueueLoadCache({ ...cache, [cacheKey]: cachedLoad })))
 				}
 			}
 			yield* Atom.set(retryProgressAtom, initialRetryProgress)
-			const page = yield* github.listPullRequestPage(viewToListInput(view, null, Math.min(pullRequestPageSize, config.prFetchLimit))).pipe(
+			const listInput = viewToListInput(view, null, Math.min(pullRequestPageSize, config.prFetchLimit))
+			devLog("pullRequestsAtom:fetch", { cacheKey, listInput, query: searchQualifier(listInput) })
+			const page = yield* github.listPullRequestPage(listInput).pipe(
 				Effect.tapError((error) =>
 					shouldRetryPullRequestFetch(error)
 						? Atom.update(retryProgressAtom, (current) =>
@@ -107,6 +119,12 @@ export const pullRequestsAtom = githubRuntime
 			)
 
 			yield* Atom.set(retryProgressAtom, initialRetryProgress)
+			devLog("pullRequestsAtom:page", {
+				cacheKey,
+				count: page.items.length,
+				hasNextPage: page.hasNextPage,
+				sampleAuthors: page.items.slice(0, 8).map((pr) => pr.author),
+			})
 			// Atomic read-merge-write into the queue cache. `Atom.modify` returns
 			// a value (the new load) while updating the atom in one registry op.
 			const load = yield* Atom.modify(queueLoadCacheAtom, (cache) => {
@@ -139,6 +157,12 @@ export const pullRequestsAtom = githubRuntime
 			// Skipping the write costs one extra fetch on cold start of a
 			// genuinely empty repo, which is acceptable.
 			if (cacheViewer && load.data.length > 0) yield* cacheService.writeQueue(cacheViewer, load)
+			devLog("pullRequestsAtom:done", {
+				cacheKey,
+				loadView: load.view,
+				dataLen: load.data.length,
+				sampleAuthors: load.data.slice(0, 8).map((pr) => pr.author),
+			})
 			return load
 		}),
 	)
@@ -253,7 +277,21 @@ export const pullRequestLoadAtom = Atom.make((get) => {
 	const cache = get(queueLoadCacheAtom)
 	const result = get(pullRequestsAtom)
 	const resolved = AsyncResult.getOrElse(result, () => null)
-	return cache[cacheKey] ?? (resolved && viewCacheKey(resolved.view) === cacheKey ? resolved : null)
+	const cached = cache[cacheKey] ?? null
+	const resolvedMatch = resolved && viewCacheKey(resolved.view) === cacheKey ? resolved : null
+	const out = cached ?? resolvedMatch ?? null
+	devLog("pullRequestLoadAtom", {
+		cacheKey,
+		cacheKeys: Object.keys(cache),
+		cachedHit: cached !== null,
+		cachedCount: cached?.data.length ?? 0,
+		cachedSampleAuthors: cached?.data.slice(0, 5).map((pr) => pr.author),
+		resolvedCacheKey: resolved ? viewCacheKey(resolved.view) : null,
+		resolvedCount: resolved?.data.length ?? 0,
+		decision: cached ? "cache" : resolvedMatch ? "resolved" : "null",
+		outDataLen: out?.data.length ?? 0,
+	})
+	return out
 })
 
 export const isLoadingQueueModeAtom = Atom.make((get) => {
@@ -303,7 +341,17 @@ export const displayedPullRequestsAtom = Atom.make((get) => {
 	const load = get(pullRequestLoadAtom)
 	const overrides = get(pullRequestOverridesAtom)
 	const recentlyCompleted = get(recentlyCompletedPullRequestsAtom)
-	const scope = viewRepository(get(activeViewAtom))
+	const view = get(activeViewAtom)
+	const scope = viewRepository(view)
+	devLog("displayedPullRequestsAtom", {
+		view,
+		scope,
+		loadView: load?.view,
+		loadDataLen: load?.data.length ?? 0,
+		loadSampleAuthors: load?.data.slice(0, 5).map((pr) => pr.author),
+		overridesCount: Object.keys(overrides).length,
+		recentlyCompletedCount: Object.keys(recentlyCompleted).length,
+	})
 	// Defensive scope filter: when a repository is selected, only show PRs
 	// for that repo. Without this, stale cache entries or orphans from
 	// `recentlyCompletedPullRequestsAtom` (which is a global url→pr map)

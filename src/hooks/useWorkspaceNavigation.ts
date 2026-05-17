@@ -1,6 +1,7 @@
 import type { MutableRefObject } from "react"
 import type * as Atom from "effect/unstable/reactivity/Atom"
 import { useAtomSet } from "@effect/atom-react"
+import { devLog } from "../devLog.js"
 import type { PullRequestItem } from "../domain.js"
 import { type PullRequestView, nextView, viewCacheKey, viewEquals } from "../pullRequestViews.js"
 import { issueViewForPullRequestView } from "../viewSync.js"
@@ -91,6 +92,7 @@ export const useWorkspaceNavigation = (input: UseWorkspaceNavigationInput): Work
 	const setRecentRepositories = useAtomSet(recentRepositoriesAtom)
 
 	const switchViewTo = (view: PullRequestView) => {
+		devLog("switchViewTo:enter", { from: activeView, to: view, equal: viewEquals(view, activeView) })
 		if (viewEquals(view, activeView)) return
 		refreshGenerationRef.current += 1
 		setQueueSelection((current) => ({ ...current, [currentQueueCacheKey]: selectedIndex }))

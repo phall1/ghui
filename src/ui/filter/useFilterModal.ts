@@ -1,3 +1,4 @@
+import { devLog } from "../../devLog.js"
 import type { PullRequestView } from "../../pullRequestViews.js"
 import type { WorkspaceSurface } from "../../workspaceSurfaces.js"
 import type { IssueView } from "../issues/atoms.js"
@@ -67,6 +68,7 @@ export const useFilterModal = ({
 
 	const applySelectedFilter = () => {
 		const option = filterOptions[filterModal.selectedIndex]
+		devLog("applySelectedFilter", { option, surface: filterModal.surface, selectedRepository, activeView, activeIssueView })
 		if (!option) return
 		if (filterModal.surface === "pullRequests" && selectedRepository) {
 			switchViewTo(option.value === "mine" ? { _tag: "Queue", mode: "authored", repository: selectedRepository } : { _tag: "Repository", repository: selectedRepository })
