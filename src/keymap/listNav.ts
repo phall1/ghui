@@ -62,6 +62,7 @@ export const listNavKeymap = List(
 	{ id: "list.scope-filter", title: "Filter items", keys: ["f"], when: filterableSurfaceActive, run: (s) => s.openFilterModal() },
 	{ id: "list.remove-repo", title: "Remove repository", keys: ["x"], when: reposActive, run: (s) => s.removeSelectedRepository() },
 	{ id: "list.refresh", title: "Refresh", keys: ["r"], when: pullRequestsActive, run: (s) => s.runCommandById("pull.refresh") },
+	{ id: "list.refresh-issues", title: "Refresh issues", keys: ["r"], when: (s) => s.activeSurface === "issues", run: (s) => s.runCommandById("issue.refresh") },
 	{ id: "list.theme", title: "Theme", keys: ["t"], run: (s) => s.runCommandById("theme.open") },
 	{ id: "list.diff", title: "Open diff", keys: ["d"], when: pullRequestsActive, run: (s) => s.runCommandById("diff.open") },
 	{ id: "list.comments", title: "Open comments", keys: ["c"], enabled: itemSelected, run: (s) => s.runCommandById("comments.open") },

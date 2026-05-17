@@ -494,6 +494,15 @@ export const globalCommands: readonly CommandDefinition[] = [
 		run: Effect.sync(() => invokeHandoff("refreshPullRequests")),
 	}),
 	defineCommand({
+		id: "issue.refresh",
+		title: "Refresh issues",
+		scope: "Global",
+		subtitle: "Fetch the latest issue queue from GitHub",
+		shortcut: "r",
+		keywords: ["reload", "sync"],
+		run: Effect.sync(() => invokeHandoff("refreshIssues")),
+	}),
+	defineCommand({
 		id: "pull.load-more",
 		title: "Load more pull requests",
 		scope: "Navigation",

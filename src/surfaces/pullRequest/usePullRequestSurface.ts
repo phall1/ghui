@@ -247,7 +247,14 @@ export const usePullRequestSurface = (input: UsePullRequestSurfaceInput): PullRe
 		focusReturnMinMs: FOCUS_RETURN_REFRESH_MIN_MS,
 		idleAfterMs: FOCUSED_IDLE_REFRESH_MS,
 		jitterMs: AUTO_REFRESH_JITTER_MS,
-		onRefresh: (ms) => maybeRefreshPullRequestsRef.current(ms),
+		// Skip the focus-return refresh while a load-more is in flight. A
+		// concurrent queue refetch would otherwise clobber the pagination
+		// merge (the cache write order isn't deterministic), reverting a
+		// freshly-loaded next page.
+		onRefresh: (ms) => {
+			if (isLoadingMorePullRequests) return
+			maybeRefreshPullRequestsRef.current(ms)
+		},
 	})
 
 	const { armRefreshToast, cancelRefreshToast } = useRefreshCompletionToast({

@@ -1,7 +1,12 @@
 import type { MutableRefObject } from "react"
 import type { IssueItem, PullRequestComment, PullRequestItem } from "../domain.js"
 import { errorMessage } from "../errors.js"
+import { capRecord } from "../recordCap.js"
 import { pullRequestDiffKey } from "../ui/diff.js"
+
+// Cap of the in-memory comments cache. One entry per PR/issue ever opened;
+// without a cap, day-long TUI sessions accumulate forever.
+const COMMENTS_CACHE_CAP = 64
 
 type CommentStatus = "loading" | "ready"
 
@@ -42,12 +47,12 @@ export const useCommentsLoader = ({
 		const previousLoadState = readCommentsLoadState()[key]
 		if (!force && previousLoadState) return
 		const generation = refreshGenerationRef.current
-		setPullRequestCommentsLoaded((current) => ({ ...current, [key]: "loading" }))
+		setPullRequestCommentsLoaded((current) => capRecord({ ...current, [key]: "loading" }, COMMENTS_CACHE_CAP))
 		void fetch()
 			.then((items) => {
 				if (generation !== refreshGenerationRef.current) return
-				setPullRequestComments((current) => ({ ...current, [key]: items }))
-				setPullRequestCommentsLoaded((current) => ({ ...current, [key]: "ready" }))
+				setPullRequestComments((current) => capRecord({ ...current, [key]: items }, COMMENTS_CACHE_CAP))
+				setPullRequestCommentsLoaded((current) => capRecord({ ...current, [key]: "ready" }, COMMENTS_CACHE_CAP))
 			})
 			.catch((error) => {
 				if (generation !== refreshGenerationRef.current) return

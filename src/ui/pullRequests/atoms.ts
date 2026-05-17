@@ -84,7 +84,15 @@ export const pullRequestsAtom = githubRuntime
 			const view = get(activeViewAtom)
 			const cacheKey = viewCacheKey(view)
 			devLog("pullRequestsAtom:start", { view, cacheKey })
-			const cacheUsername = view._tag === "Repository" ? null : yield* github.getAuthenticatedUser().pipe(Effect.catch(() => Effect.succeed(null)))
+			const cacheUsername =
+				view._tag === "Repository"
+					? null
+					: yield* github.getAuthenticatedUser().pipe(
+							Effect.catch((cause) => {
+								devLog("pullRequestsAtom:authFailed", { view, cause: String(cause) })
+								return Effect.succeed(null)
+							}),
+						)
 			const cacheViewer = cacheViewerFor(view, cacheUsername)
 			devLog("pullRequestsAtom:viewer", { cacheUsername, cacheViewer })
 			if (cacheViewer) {

@@ -2,9 +2,15 @@ import { useAtomSet } from "@effect/atom-react"
 import type * as Atom from "effect/unstable/reactivity/Atom"
 import type { PullRequestItem, PullRequestReviewComment } from "../domain.js"
 import { errorMessage } from "../errors.js"
+import { capRecord } from "../recordCap.js"
 import { diffCommentsLoadedAtom, pullRequestDiffAtom, pullRequestDiffCacheAtom } from "../ui/diff/atoms.js"
 import { PullRequestDiffState, pullRequestDiffKey, splitPatchFiles, type PullRequestDiffState as PullRequestDiffStateType } from "../ui/diff.js"
 import { groupDiffCommentThreads, isLocalDiffComment } from "../ui/diff/comments.js"
+
+// Cap of the in-memory diff/threads caches. One entry per PR-revision
+// (url + headRefOid) ever opened — without a cap, day-long sessions
+// accumulate every diff the user has ever scrolled through.
+const DIFF_CACHE_CAP = 32
 
 type LoadStatus = "loading" | "ready"
 
@@ -48,10 +54,10 @@ export const useDiffLoader = ({
 		const key = pullRequestDiffKey(pullRequest)
 		const previousLoadState = registry.get(diffCommentsLoadedAtom)[key]
 		if (!force && previousLoadState) return
-		setDiffCommentsLoaded((current) => ({ ...current, [key]: "loading" }))
+		setDiffCommentsLoaded((current) => capRecord({ ...current, [key]: "loading" }, DIFF_CACHE_CAP))
 		void listPullRequestReviewComments({ repository: pullRequest.repository, number: pullRequest.number })
 			.then((comments) => {
-				setDiffCommentsLoaded((current) => ({ ...current, [key]: "ready" }))
+				setDiffCommentsLoaded((current) => capRecord({ ...current, [key]: "ready" }, DIFF_CACHE_CAP))
 				setDiffCommentThreads((current) => {
 					const prefix = `${key}:`
 					const threads = groupDiffCommentThreads(pullRequest, comments)
@@ -66,7 +72,10 @@ export const useDiffLoader = ({
 					for (const [threadKey, threadComments] of Object.entries(threads)) {
 						if (!next[threadKey]) next[threadKey] = threadComments
 					}
-					return next
+					// `diffCommentThreads` is keyed by `pullRequestDiffKey(pr):lineRef`
+					// — one entry per thread. Cap to ~16 PRs worth of threads
+					// (assume up to a few dozen threads per PR).
+					return capRecord(next, DIFF_CACHE_CAP * 32)
 				})
 			})
 			.catch((error) => {
@@ -88,19 +97,29 @@ export const useDiffLoader = ({
 		if (includeComments) loadPullRequestReviewComments(pullRequest, force)
 		if (!force && existing && (existing._tag === "Ready" || existing._tag === "Loading")) return
 
-		setPullRequestDiffCache((current) => ({ ...current, [key]: PullRequestDiffState.Loading() }))
+		setPullRequestDiffCache((current) => capRecord({ ...current, [key]: PullRequestDiffState.Loading() }, DIFF_CACHE_CAP))
 		void fetchDiff({ repository: pullRequest.repository, number: pullRequest.number })
 			.then((patch) => {
-				setPullRequestDiffCache((current) => ({
-					...current,
-					[key]: PullRequestDiffState.Ready({ patch, files: splitPatchFiles(patch) }),
-				}))
+				setPullRequestDiffCache((current) =>
+					capRecord(
+						{
+							...current,
+							[key]: PullRequestDiffState.Ready({ patch, files: splitPatchFiles(patch) }),
+						},
+						DIFF_CACHE_CAP,
+					),
+				)
 			})
 			.catch((error) => {
-				setPullRequestDiffCache((current) => ({
-					...current,
-					[key]: PullRequestDiffState.Error({ error: errorMessage(error) }),
-				}))
+				setPullRequestDiffCache((current) =>
+					capRecord(
+						{
+							...current,
+							[key]: PullRequestDiffState.Error({ error: errorMessage(error) }),
+						},
+						DIFF_CACHE_CAP,
+					),
+				)
 				flashNotice(errorMessage(error))
 			})
 	}

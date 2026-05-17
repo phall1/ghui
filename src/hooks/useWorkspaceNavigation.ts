@@ -147,7 +147,16 @@ export const useWorkspaceNavigation = (input: UseWorkspaceNavigationInput): Work
 
 	const goUpWorkspaceScope = (): boolean => {
 		if (!selectedRepository) return false
-		switchViewTo({ _tag: "Queue", mode: "authored", repository: null })
+		// "Go up" lands the user back on the global Repos hub regardless of
+		// which surface they came from. Previously this routed through
+		// `switchViewTo({...repository: null})`, which fired all of
+		// `switchViewTo`'s PR-scoped side effects (reset PR selection, bump
+		// PR refresh generation, clear `recentlyCompletedPullRequestsAtom`,
+		// etc.) even when triggered from the Issues surface. Direct atom
+		// writes here keep the action's blast radius matched to its intent.
+		setActiveView({ _tag: "Queue", mode: "authored", repository: null })
+		setActiveIssueView(issueViewForPullRequestView({ _tag: "Queue", mode: "authored", repository: null }))
+		setActiveWorkspaceSurface("repos")
 		return true
 	}
 

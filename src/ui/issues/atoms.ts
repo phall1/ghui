@@ -1,6 +1,7 @@
 import { Effect } from "effect"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import * as Atom from "effect/unstable/reactivity/Atom"
+import { devLog } from "../../devLog.js"
 import type { IssueItem } from "../../domain.js"
 import { type ItemListInput, issueQueryToListInput } from "../../item.js"
 import type { IssueLoad } from "../../issueLoad.js"
@@ -31,6 +32,16 @@ const emptyIssueLoad = (view: IssueView): IssueLoad => ({
 // the network request resolves.
 export const issueQueueLoadCacheAtom = Atom.make<Partial<Record<string, IssueLoad>>>({}).pipe(Atom.keepAlive)
 
+// Cap of repo-scoped "all" entries; user-scoped queues stay forever.
+// Mirrors the PR-side `trimQueueLoadCache` shape so behaviour is consistent.
+const MAX_ISSUE_REPOSITORY_CACHE_ENTRIES = 8
+const trimIssueQueueLoadCache = (cache: Partial<Record<string, IssueLoad>>) => {
+	const repositoryKeys = Object.keys(cache).filter((key) => key.startsWith("issue:all:") && !key.endsWith(":_"))
+	if (repositoryKeys.length <= MAX_ISSUE_REPOSITORY_CACHE_ENTRIES) return cache
+	const remove = new Set(repositoryKeys.slice(0, repositoryKeys.length - MAX_ISSUE_REPOSITORY_CACHE_ENTRIES))
+	return Object.fromEntries(Object.entries(cache).filter(([key]) => !remove.has(key))) as Partial<Record<string, IssueLoad>>
+}
+
 // The `(get)` parameter makes this atom reactive on the active issue view.
 // Using `get(activeIssueViewAtom)` (rather than `Atom.get(...)` as an Effect
 // service) registers the dependency via AtomContext, so any view change —
@@ -46,12 +57,20 @@ export const issuesAtom = githubRuntime
 			const repository = issueViewRepository(view)
 			// "all" needs a repository; without one we have nothing to show until the user picks one.
 			if (mode === "all" && !repository) return emptyIssueLoad(view)
-			const cacheUsername = view._tag === "Repository" ? null : yield* github.getAuthenticatedUser().pipe(Effect.catch(() => Effect.succeed(null)))
+			const cacheUsername =
+				view._tag === "Repository"
+					? null
+					: yield* github.getAuthenticatedUser().pipe(
+							Effect.catch((cause) => {
+								devLog("issuesAtom:authFailed", { view, cause: String(cause) })
+								return Effect.succeed(null)
+							}),
+						)
 			const cacheViewer = issueCacheViewerFor(view, cacheUsername)
 			if (cacheViewer) {
 				const cachedLoad = yield* cacheService.readIssueQueue(cacheViewer, view).pipe(Effect.catch(() => Effect.succeed(null)))
 				if (cachedLoad) {
-					yield* Atom.update(issueQueueLoadCacheAtom, (cache) => (cache[cacheKey] ? cache : { ...cache, [cacheKey]: cachedLoad }))
+					yield* Atom.update(issueQueueLoadCacheAtom, (cache) => (cache[cacheKey] ? cache : trimIssueQueueLoadCache({ ...cache, [cacheKey]: cachedLoad })))
 				}
 			}
 			const page = yield* github.listIssuePage(issueQueryToListInput(issueViewToQuery(view), null, pullRequestPageSize))
@@ -68,7 +87,7 @@ export const issuesAtom = githubRuntime
 					endCursor: looksLikeBogusEmpty ? (existing?.endCursor ?? page.endCursor) : page.endCursor,
 					hasNextPage: looksLikeBogusEmpty ? (existing?.hasNextPage ?? false) : page.hasNextPage,
 				}
-				return [next, { ...cache, [cacheKey]: next }]
+				return [next, trimIssueQueueLoadCache({ ...cache, [cacheKey]: next })]
 			})
 			// Same SQLite-write guard as pullRequestsAtom — don't persist an
 			// empty queue or it'll come back authoritative next session.

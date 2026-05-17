@@ -8,6 +8,7 @@ export interface UseCommandHandoffsInput {
 	readonly selectedPullRequest: PullRequestItem | null
 	readonly selectedRepository: string | null
 	readonly refreshPullRequests: (message?: string, options?: { readonly resetTransientState?: boolean }) => void
+	readonly refreshIssues: () => void
 	readonly loadMorePullRequests: () => boolean | Promise<void> | void
 	readonly loadPullRequestDiff: (pr: PullRequestItem, options?: { readonly force?: boolean; readonly includeComments?: boolean }) => void
 	readonly flashNotice: (message: string) => void
@@ -41,6 +42,7 @@ export const useCommandHandoffs = ({
 	selectedPullRequest,
 	selectedRepository,
 	refreshPullRequests,
+	refreshIssues,
 	loadMorePullRequests,
 	loadPullRequestDiff,
 	flashNotice,
@@ -62,6 +64,7 @@ export const useCommandHandoffs = ({
 }: UseCommandHandoffsInput): void => {
 	useEffect(() => registerHandoff("quit", () => renderer.destroy()), [renderer])
 	useEffect(() => registerHandoff("refreshPullRequests", () => refreshPullRequests("Refreshed", { resetTransientState: true })), [refreshPullRequests])
+	useEffect(() => registerHandoff("refreshIssues", refreshIssues), [refreshIssues])
 	useEffect(() => registerHandoff("loadMorePullRequests", () => void loadMorePullRequests()), [loadMorePullRequests])
 	useEffect(() => registerHandoff("openThemeModal", openThemeModal), [openThemeModal])
 	useEffect(() => registerHandoff("openMergeModal", openMergeModal), [openMergeModal])

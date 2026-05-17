@@ -872,6 +872,7 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 		selectedPullRequest,
 		selectedRepository,
 		refreshPullRequests,
+		refreshIssues: refreshIssuesAtomRaw,
 		loadMorePullRequests,
 		loadPullRequestDiff,
 		flashNotice,

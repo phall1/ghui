@@ -1,4 +1,5 @@
 import { useEffect } from "react"
+import { devLog } from "../devLog.js"
 import type { IssueItem, PullRequestItem } from "../domain.js"
 import type { RepoRollupRow } from "../services/CacheService.js"
 
@@ -55,21 +56,21 @@ export const useStartupTasks = ({
 	setQueueSelection,
 }: UseStartupTasksInput): void => {
 	useEffect(() => {
-		void pruneCache().catch(() => {})
+		void pruneCache().catch((cause) => devLog("useStartupTasks:pruneCacheFailed", { cause: String(cause) }))
 	}, [pruneCache])
 
 	useEffect(() => {
 		if (!username) return
 		void readRepoRollup(username)
 			.then((rows) => setRepoRollup(rows))
-			.catch(() => {})
+			.catch((cause) => devLog("useStartupTasks:readRepoRollupFailed", { username, cause: String(cause) }))
 	}, [username, pullRequestLoad?.fetchedAt, issueLoad?.fetchedAt, readRepoRollup, setRepoRollup])
 
 	useEffect(() => {
 		if (!username) return
 		const repositories = Array.from(new Set([...recentRepositories, ...Object.keys(favoriteRepositories), ...(detectedRepository ? [detectedRepository] : [])]))
 		if (repositories.length === 0) return
-		void prewarmRepositoryDetails(repositories).catch(() => {})
+		void prewarmRepositoryDetails(repositories).catch((cause) => devLog("useStartupTasks:prewarmFailed", { repositories, cause: String(cause) }))
 	}, [username, recentRepositories, favoriteRepositories, detectedRepository, prewarmRepositoryDetails])
 
 	useEffect(() => {

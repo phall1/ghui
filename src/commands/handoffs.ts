@@ -22,6 +22,7 @@ type Handoff =
 	| "openThemeModal"
 	| "openMergeModal"
 	| "refreshPullRequests"
+	| "refreshIssues"
 	| "loadMorePullRequests"
 	| "openCommentsView"
 	| "openReplyToSelectedComment"
