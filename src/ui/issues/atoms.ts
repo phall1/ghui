@@ -82,14 +82,24 @@ export const issuesAtom = githubRuntime
 // (populated by either the SQLite read or the network response) and falls
 // back to whatever the network atom most recently resolved. Mirrors
 // `pullRequestLoadAtom`.
-export const issueLoadAtom = Atom.make((get) => {
-	const view = get(activeIssueViewAtom)
+// Pure resolver — mirrors `resolveLoad` in `ui/pullRequests/atoms.ts`.
+// Inlined into every consumer instead of going through `issueLoadAtom`
+// because that intermediate derived atom does not reliably re-evaluate
+// when its upstream deps change. See the longer note on `resolveLoad`
+// in the PR atoms file.
+export const resolveIssueLoad = (view: IssueView, cache: Partial<Record<string, IssueLoad>>, result: AsyncResult.AsyncResult<IssueLoad, unknown>): IssueLoad | null => {
 	const cacheKey = issueViewCacheKey(view)
-	const cache = get(issueQueueLoadCacheAtom)
-	const result = get(issuesAtom)
+	const cached = cache[cacheKey] ?? null
+	if (cached) return cached
 	const resolved = AsyncResult.getOrElse(result, () => null)
-	return cache[cacheKey] ?? (resolved && issueViewCacheKey(resolved.view) === cacheKey ? resolved : null)
-})
+	if (resolved && issueViewCacheKey(resolved.view) === cacheKey) return resolved
+	return null
+}
+
+// Legacy `issueLoadAtom` — kept for backwards compatibility with hooks
+// that consume it via `useAtomValue`. New derived atoms should inline
+// `resolveIssueLoad` instead.
+export const issueLoadAtom = Atom.make((get) => resolveIssueLoad(get(activeIssueViewAtom), get(issueQueueLoadCacheAtom), get(issuesAtom)))
 
 export const isLoadingIssueViewAtom = Atom.make((get) => {
 	const cacheKey = issueViewCacheKey(get(activeIssueViewAtom))
@@ -98,12 +108,10 @@ export const isLoadingIssueViewAtom = Atom.make((get) => {
 })
 
 export const issueListAtom = Atom.make((get): readonly IssueItem[] => {
-	const load = get(issueLoadAtom)
+	const view = get(activeIssueViewAtom)
+	const load = resolveIssueLoad(view, get(issueQueueLoadCacheAtom), get(issuesAtom))
 	const overrides = get(issueOverridesAtom)
-	// Defensive scope filter — see displayedPullRequestsAtom for the same
-	// pattern. Without it, a stale cache entry can surface items from the
-	// previous repository under the new breadcrumb.
-	const scope = issueViewRepository(get(activeIssueViewAtom))
+	const scope = issueViewRepository(view)
 	const source = (load?.data ?? []).filter((issue) => scope === null || issue.repository === scope)
 	return source.map((issue) => overrides[issue.url] ?? issue)
 })
@@ -124,10 +132,10 @@ export const writeIssueQueueAtom = githubRuntime.fn<{ readonly viewer: string; r
 	CacheService.use((cache) => cache.writeIssueQueue(viewer, load)),
 )
 
-export const loadedIssueCountAtom = Atom.make((get) => get(issueLoadAtom)?.data.length ?? 0)
+export const loadedIssueCountAtom = Atom.make((get) => resolveIssueLoad(get(activeIssueViewAtom), get(issueQueueLoadCacheAtom), get(issuesAtom))?.data.length ?? 0)
 
 export const hasMoreIssuesAtom = Atom.make((get) => {
-	const load = get(issueLoadAtom)
+	const load = resolveIssueLoad(get(activeIssueViewAtom), get(issueQueueLoadCacheAtom), get(issuesAtom))
 	// Reuse the PR fetch limit until issues get their own knob — the cap is
 	// the same shape (don't blow past N items per queue).
 	const PR_FETCH_LIMIT = 500

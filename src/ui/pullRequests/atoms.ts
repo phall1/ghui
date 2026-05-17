@@ -271,6 +271,32 @@ const pullRequestFilterScore = (pullRequest: PullRequestItem, query: string) => 
 	return scores.length > 0 ? Math.min(...scores) : null
 }
 
+// Pure resolver for the current view's load: prefer the in-memory cache for
+// the active view; fall back to the latest resolved fetch only if its view
+// matches. Inlined into every consumer instead of going through a
+// `pullRequestLoadAtom` intermediate — derived atoms that read multiple
+// upstream atoms can fail to re-evaluate cleanly under effect-atom's dep
+// propagation for certain transitions (reproduced by switching
+// Repository(X) -> Queue(authored, X)), leaving stale `view`/`data` for
+// the new active view. Reading the underlying atoms in each consumer puts
+// that consumer on the underlying atoms' dep graph directly, which DOES
+// re-evaluate, so the fix is uniform.
+export const resolveLoad = (
+	view: PullRequestView,
+	cache: Partial<Record<string, PullRequestLoad>>,
+	result: AsyncResult.AsyncResult<PullRequestLoad, unknown>,
+): PullRequestLoad | null => {
+	const cacheKey = viewCacheKey(view)
+	const cached = cache[cacheKey] ?? null
+	if (cached) return cached
+	const resolved = AsyncResult.getOrElse(result, () => null)
+	if (resolved && viewCacheKey(resolved.view) === cacheKey) return resolved
+	return null
+}
+
+// Legacy `pullRequestLoadAtom` — kept for backwards compatibility with
+// hooks that consume it via `useAtomValue`, but new derived atoms should
+// inline `resolveLoad` instead.
 export const pullRequestLoadAtom = Atom.make((get) => {
 	const view = get(activeViewAtom)
 	const cacheKey = viewCacheKey(view)
@@ -302,7 +328,7 @@ export const isLoadingQueueModeAtom = Atom.make((get) => {
 
 export const pullRequestStatusAtom = Atom.make((get): LoadStatus => {
 	const result = get(pullRequestsAtom)
-	const load = get(pullRequestLoadAtom)
+	const load = resolveLoad(get(activeViewAtom), get(queueLoadCacheAtom), result)
 	const isLoadingQueue = get(isLoadingQueueModeAtom)
 	if ((result.waiting || isLoadingQueue) && load === null) return "loading"
 	if (AsyncResult.isFailure(result) && load === null) return "error"
@@ -311,9 +337,9 @@ export const pullRequestStatusAtom = Atom.make((get): LoadStatus => {
 
 export const selectedRepositoryAtom = Atom.make((get) => viewRepository(get(activeViewAtom)))
 export const activeViewsAtom = Atom.make((get) => activePullRequestViews(get(activeViewAtom)))
-export const loadedPullRequestCountAtom = Atom.make((get) => get(pullRequestLoadAtom)?.data.length ?? 0)
+export const loadedPullRequestCountAtom = Atom.make((get) => resolveLoad(get(activeViewAtom), get(queueLoadCacheAtom), get(pullRequestsAtom))?.data.length ?? 0)
 export const hasMorePullRequestsAtom = Atom.make((get) => {
-	const load = get(pullRequestLoadAtom)
+	const load = resolveLoad(get(activeViewAtom), get(queueLoadCacheAtom), get(pullRequestsAtom))
 	return Boolean(load?.hasNextPage && load.data.length < config.prFetchLimit)
 })
 
@@ -338,17 +364,16 @@ export const loadMoreRowSelectedAtom = Atom.make((get) => {
 })
 
 export const displayedPullRequestsAtom = Atom.make((get) => {
-	const load = get(pullRequestLoadAtom)
+	const view = get(activeViewAtom)
+	const load = resolveLoad(view, get(queueLoadCacheAtom), get(pullRequestsAtom))
 	const overrides = get(pullRequestOverridesAtom)
 	const recentlyCompleted = get(recentlyCompletedPullRequestsAtom)
-	const view = get(activeViewAtom)
 	const scope = viewRepository(view)
 	devLog("displayedPullRequestsAtom", {
 		view,
 		scope,
 		loadView: load?.view,
 		loadDataLen: load?.data.length ?? 0,
-		loadSampleAuthors: load?.data.slice(0, 5).map((pr) => pr.author),
 		overridesCount: Object.keys(overrides).length,
 		recentlyCompletedCount: Object.keys(recentlyCompleted).length,
 	})

@@ -91,15 +91,35 @@ const sample = (label: string) => {
 	)
 }
 
-console.log(">> Setting activeView to Repository view (all PRs)")
+// Subscribe to displayedPullRequestsAtom to keep it active during transitions
+// — this mimics what `useAtomValue(visiblePullRequestsAtom)` does in the React
+// tree. Without an active subscriber, derived atoms may be GC'd between reads,
+// which would mask any propagation bug.
+const unsubDisplayed = registry.subscribe(displayedPullRequestsAtom, () => {})
+const unsubLoad = registry.subscribe(pullRequestLoadAtom, () => {})
+
+// 1. Start in Queue authored global (the initial-view state ghui boots into).
+const globalAuthored: PullRequestView = { _tag: "Queue", mode: "authored", repository: null }
+console.log(">> Setting activeView to Queue(authored, global)")
+registry.set(activeViewAtom, globalAuthored)
+await waitForResult(pullRequestsAtom)
+sample("STEP 1: AFTER global authored fetch")
+
+console.log("\n>> Switching activeView to Repository(anomalyco/opencode)")
 registry.set(activeViewAtom, repositoryView)
 await waitForResult(pullRequestsAtom)
-sample("AFTER Repository fetch")
+sample("STEP 2: AFTER Repository fetch")
 
-console.log("\n>> Switching activeView to Queue(authored)")
+console.log("\n>> Switching activeView to Queue(authored, anomalyco/opencode) — repro the bug")
 registry.set(activeViewAtom, authoredView)
+// Sample IMMEDIATELY (before fetch completes) to capture the transient state
+// the user actually sees.
+sample("STEP 3a: IMMEDIATELY AFTER set(authoredView)")
 await waitForResult(pullRequestsAtom)
-sample("AFTER Queue(authored) fetch")
+sample("STEP 3b: AFTER Queue(authored) fetch")
+
+unsubDisplayed()
+unsubLoad()
 
 console.log("\n>> Done. See /tmp/ghui-debug.log for atom-level trace.")
 process.exit(0)

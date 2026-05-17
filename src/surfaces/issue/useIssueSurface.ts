@@ -10,13 +10,14 @@ import { useIssuesLoadMore } from "../../hooks/useIssuesLoadMore.js"
 import {
 	activeIssueViewAtom,
 	hasMoreIssuesAtom,
-	issueLoadAtom,
 	issueQueueLoadCacheAtom,
 	issuesAtom,
 	issueViewRepository,
 	loadedIssueCountAtom,
 	loadMoreIssueRowSelectedAtom,
+	resolveIssueLoad,
 } from "../../ui/issues/atoms.js"
+import { useMemo } from "react"
 import { issueOverridesAtom } from "../../ui/pullRequests/atoms.js"
 import { selectedIssueIndexAtom } from "../../ui/listSelection/atoms.js"
 // `issueOverridesAtom` currently lives next to PR atoms; a future
@@ -94,7 +95,7 @@ export const useIssueSurface = (input: UseIssueSurfaceInput): IssueSurfaceShell 
 	} = input
 
 	const issuesResult = useAtomValue(issuesAtom)
-	const issueLoad = useAtomValue(issueLoadAtom)
+	const issueQueueLoadCache = useAtomValue(issueQueueLoadCacheAtom)
 	const hasMoreIssues = useAtomValue(hasMoreIssuesAtom)
 	const loadedIssueCount = useAtomValue(loadedIssueCountAtom)
 	const loadMoreIssueRowSelected = useAtomValue(loadMoreIssueRowSelectedAtom)
@@ -102,6 +103,15 @@ export const useIssueSurface = (input: UseIssueSurfaceInput): IssueSurfaceShell 
 	const [selectedIssueIndex, setSelectedIssueIndex] = useAtom(selectedIssueIndexAtom)
 	const [activeIssueView, setActiveIssueView] = useAtom(activeIssueViewAtom)
 	const [issueOverrides, setIssueOverrides] = useAtom(issueOverridesAtom)
+
+	// Resolve the issue load directly from underlying atoms rather than
+	// reading `issueLoadAtom`. The derived `issueLoadAtom` does not always
+	// re-evaluate after `activeIssueViewAtom` changes (same effect-atom
+	// dep-propagation behaviour documented on `resolveLoad` in
+	// `ui/pullRequests/atoms.ts`), which would leave the issue list showing
+	// the previous view's data after switching modes. Re-deriving here puts
+	// `useIssueSurface` on the underlying atoms' dep graph directly.
+	const issueLoad = useMemo(() => resolveIssueLoad(activeIssueView, issueQueueLoadCache, issuesResult), [activeIssueView, issueQueueLoadCache, issuesResult])
 
 	const selectedIssueRepository = issueViewRepository(activeIssueView)
 	const issueAuthorFilterActive = selectedIssueRepository !== null && activeIssueView._tag === "Queue" && activeIssueView.mode === "authored"
