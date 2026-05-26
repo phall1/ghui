@@ -138,7 +138,10 @@ export const isLoadingIssueViewAtom = Atom.make((get) => {
 
 export const issueListAtom = Atom.make((get): readonly IssueItem[] => {
 	const view = get(activeIssueViewAtom)
-	const load = resolveIssueLoad(view, get(issueQueueLoadCacheAtom), get(issuesForView(view)))
+	// The fetch atom writes every displayable result to the keyed cache. Do not
+	// introduce a dynamic runtime-atom dependency in the displayed pipeline;
+	// it can retain the previous view after a repo filter transition.
+	const load = get(issueQueueLoadCacheAtom)[issueViewCacheKey(view)] ?? null
 	const overrides = get(issueOverridesAtom)
 	const scope = issueViewRepository(view)
 	const source = (load?.data ?? []).filter((issue) => scope === null || issue.repository === scope)
@@ -162,13 +165,11 @@ export const writeIssueQueueAtom = githubRuntime.fn<{ readonly viewer: string; r
 )
 
 export const loadedIssueCountAtom = Atom.make((get) => {
-	const view = get(activeIssueViewAtom)
-	return resolveIssueLoad(view, get(issueQueueLoadCacheAtom), get(issuesForView(view)))?.data.length ?? 0
+	return get(issueQueueLoadCacheAtom)[issueViewCacheKey(get(activeIssueViewAtom))]?.data.length ?? 0
 })
 
 export const hasMoreIssuesAtom = Atom.make((get) => {
-	const view = get(activeIssueViewAtom)
-	const load = resolveIssueLoad(view, get(issueQueueLoadCacheAtom), get(issuesForView(view)))
+	const load = get(issueQueueLoadCacheAtom)[issueViewCacheKey(get(activeIssueViewAtom))] ?? null
 	// Reuse the PR fetch limit until issues get their own knob — the cap is
 	// the same shape (don't blow past N items per queue).
 	const PR_FETCH_LIMIT = 500

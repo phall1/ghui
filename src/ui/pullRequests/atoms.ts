@@ -327,6 +327,8 @@ const getCurrentPullRequestsResult = (get: Atom.AtomContext) => get(pullRequests
 
 export const pullRequestLoadAtom = Atom.make((get) => resolveLoad(get(activeViewAtom), get(queueLoadCacheAtom), getCurrentPullRequestsResult(get))).pipe(Atom.keepAlive)
 
+const cachedPullRequestLoad = (get: Atom.AtomContext): PullRequestLoad | null => get(queueLoadCacheAtom)[viewCacheKey(get(activeViewAtom))] ?? null
+
 export const isLoadingQueueModeAtom = Atom.make((get) => {
 	// Pure delegate of "is the active view's queue still loading".
 	// With family-per-view this is just whether the current view's atom
@@ -347,9 +349,9 @@ export const pullRequestStatusAtom = Atom.make((get): LoadStatus => {
 
 export const selectedRepositoryAtom = Atom.make((get) => viewRepository(get(activeViewAtom)))
 export const activeViewsAtom = Atom.make((get) => activePullRequestViews(get(activeViewAtom)))
-export const loadedPullRequestCountAtom = Atom.make((get) => resolveLoad(get(activeViewAtom), get(queueLoadCacheAtom), getCurrentPullRequestsResult(get))?.data.length ?? 0)
+export const loadedPullRequestCountAtom = Atom.make((get) => cachedPullRequestLoad(get)?.data.length ?? 0)
 export const hasMorePullRequestsAtom = Atom.make((get) => {
-	const load = resolveLoad(get(activeViewAtom), get(queueLoadCacheAtom), getCurrentPullRequestsResult(get))
+	const load = cachedPullRequestLoad(get)
 	return Boolean(load?.hasNextPage && load.data.length < config.prFetchLimit)
 })
 
@@ -375,7 +377,11 @@ export const loadMoreRowSelectedAtom = Atom.make((get) => {
 
 export const displayedPullRequestsAtom = Atom.make((get) => {
 	const view = get(activeViewAtom)
-	const load = resolveLoad(view, get(queueLoadCacheAtom), get(pullRequestsForView(view)))
+	// Fetch atoms always publish successful/cached loads into this cache. Avoid
+	// dynamically depending on a per-view runtime atom here: after switching
+	// Repository(X) -> Queue(authored, X), that dependency could remain valid
+	// with the prior repository list even after the authored fetch succeeded.
+	const load = get(queueLoadCacheAtom)[viewCacheKey(view)] ?? null
 	const overrides = get(pullRequestOverridesAtom)
 	const recentlyCompleted = get(recentlyCompletedPullRequestsAtom)
 	const scope = viewRepository(view)

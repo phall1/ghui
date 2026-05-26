@@ -23,12 +23,11 @@ import {
 	hasMorePullRequestsAtom,
 	loadMoreRowSelectedAtom,
 	loadedPullRequestCountAtom,
-	pullRequestLoadAtom,
 	pullRequestOverridesAtom,
 	pullRequestsForView,
-	pullRequestStatusAtom,
 	queueLoadCacheAtom,
 	recentlyCompletedPullRequestsAtom,
+	resolveLoad,
 	retryProgressAtom,
 	selectedPullRequestAtom,
 	selectedRepositoryAtom,
@@ -177,6 +176,7 @@ export const usePullRequestSurface = (input: UsePullRequestSurfaceInput): PullRe
 		if (registry.get(atom).waiting) return
 		registry.refresh(atom)
 	}, [registry, activeView])
+	const queueLoadCache = useAtomValue(queueLoadCacheAtom)
 	const setQueueLoadCache = useAtomSet(queueLoadCacheAtom)
 	const setPullRequestOverrides = useAtomSet(pullRequestOverridesAtom)
 	const setRecentlyCompletedPullRequests = useAtomSet(recentlyCompletedPullRequestsAtom)
@@ -185,9 +185,10 @@ export const usePullRequestSurface = (input: UsePullRequestSurfaceInput): PullRe
 	const setNotice = useAtomSet(noticeAtom)
 	const retryProgress = useAtomValue(retryProgressAtom)
 
-	const pullRequestLoad = useAtomValue(pullRequestLoadAtom)
+	const pullRequestLoad = useMemo(() => resolveLoad(activeView, queueLoadCache, pullRequestResult), [activeView, queueLoadCache, pullRequestResult])
 	const pullRequests = useAtomValue(displayedPullRequestsAtom)
-	const pullRequestStatus = useAtomValue(pullRequestStatusAtom)
+	const pullRequestStatus: LoadStatus =
+		pullRequestResult.waiting && pullRequestLoad === null ? "loading" : AsyncResult.isFailure(pullRequestResult) && pullRequestLoad === null ? "error" : "ready"
 	const pullRequestFetchInFlight = pullRequestResult.waiting
 	const selectedRepository = useAtomValue(selectedRepositoryAtom)
 	const pullRequestAuthorFilterActive = selectedRepository !== null && activeView._tag === "Queue" && activeView.mode === "authored"
