@@ -266,6 +266,7 @@ export const PullRequestSurface = (props: PullRequestSurfaceProps) => {
 					pullRequest={selectedPullRequest}
 					contentWidth={fullscreenContentWidth}
 					paneWidth={contentWidth}
+					loadingIndicator={loadingIndicator}
 					showChecks={false}
 					comments={selectedComments}
 					commentsStatus={selectedCommentsStatus}
@@ -284,11 +285,19 @@ export const PullRequestSurface = (props: PullRequestSurfaceProps) => {
 					pullRequest={selectedPullRequest}
 					contentWidth={fullscreenContentWidth}
 					paneWidth={contentWidth}
+					loadingIndicator={loadingIndicator}
 					showChecks={isWideLayout}
 					comments={selectedComments}
 					commentsStatus={selectedCommentsStatus}
 				/>
-				<Filler rows={Math.max(1, wideBodyHeight - fullscreenDetailHeaderHeight)} prefix="detail-loading-full" />
+				<DetailBody
+					pullRequest={selectedPullRequest}
+					contentWidth={fullscreenContentWidth}
+					bodyLines={Math.max(1, wideBodyHeight - fullscreenDetailHeaderHeight)}
+					loadingIndicator={loadingIndicator}
+					themeId={themeId}
+					themeGeneration={systemThemeGeneration}
+				/>
 			</box>
 		)
 	}
@@ -302,6 +311,7 @@ export const PullRequestSurface = (props: PullRequestSurfaceProps) => {
 							pullRequest={selectedPullRequest}
 							contentWidth={fullscreenContentWidth}
 							paneWidth={contentWidth}
+							loadingIndicator={loadingIndicator}
 							showChecks
 							comments={selectedComments}
 							commentsStatus={selectedCommentsStatus}
@@ -390,6 +400,7 @@ export const PullRequestSurface = (props: PullRequestSurfaceProps) => {
 								pullRequest={selectedPullRequest}
 								contentWidth={rightContentWidth}
 								paneWidth={rightPaneWidth}
+								loadingIndicator={loadingIndicator}
 								showChecks={false}
 								comments={selectedComments}
 								commentsStatus={selectedCommentsStatus}
@@ -404,11 +415,19 @@ export const PullRequestSurface = (props: PullRequestSurfaceProps) => {
 								pullRequest={selectedPullRequest}
 								contentWidth={rightContentWidth}
 								paneWidth={rightPaneWidth}
+								loadingIndicator={loadingIndicator}
 								showChecks
 								comments={selectedComments}
 								commentsStatus={selectedCommentsStatus}
 							/>
-							<Filler rows={Math.max(1, wideBodyHeight - wideDetailHeaderHeight)} prefix="detail-loading-preview" />
+							<DetailBody
+								pullRequest={selectedPullRequest}
+								contentWidth={rightContentWidth}
+								bodyLines={Math.max(1, wideBodyHeight - wideDetailHeaderHeight)}
+								loadingIndicator={loadingIndicator}
+								themeId={themeId}
+								themeGeneration={systemThemeGeneration}
+							/>
 						</>
 					) : selectedPullRequest ? (
 						<>
@@ -416,6 +435,7 @@ export const PullRequestSurface = (props: PullRequestSurfaceProps) => {
 								pullRequest={selectedPullRequest}
 								contentWidth={rightContentWidth}
 								paneWidth={rightPaneWidth}
+								loadingIndicator={loadingIndicator}
 								showChecks
 								comments={selectedComments}
 								commentsStatus={selectedCommentsStatus}
@@ -450,6 +470,7 @@ export const PullRequestSurface = (props: PullRequestSurfaceProps) => {
 							pullRequest={selectedPullRequest}
 							contentWidth={fullscreenContentWidth}
 							paneWidth={contentWidth}
+							loadingIndicator={loadingIndicator}
 							showChecks={false}
 							comments={selectedComments}
 							commentsStatus={selectedCommentsStatus}
@@ -464,6 +485,7 @@ export const PullRequestSurface = (props: PullRequestSurfaceProps) => {
 							pullRequest={selectedPullRequest}
 							contentWidth={fullscreenContentWidth}
 							paneWidth={contentWidth}
+							loadingIndicator={loadingIndicator}
 							comments={selectedComments}
 							commentsStatus={selectedCommentsStatus}
 						/>
@@ -518,6 +540,7 @@ export const PullRequestSurface = (props: PullRequestSurfaceProps) => {
 							pullRequest={selectedPullRequest}
 							contentWidth={fullscreenContentWidth}
 							paneWidth={contentWidth}
+							loadingIndicator={loadingIndicator}
 							showChecks={false}
 							comments={selectedComments}
 							commentsStatus={selectedCommentsStatus}
@@ -531,6 +554,7 @@ export const PullRequestSurface = (props: PullRequestSurfaceProps) => {
 							pullRequest={selectedPullRequest}
 							contentWidth={fullscreenContentWidth}
 							paneWidth={contentWidth}
+							loadingIndicator={loadingIndicator}
 							comments={selectedComments}
 							commentsStatus={selectedCommentsStatus}
 						/>

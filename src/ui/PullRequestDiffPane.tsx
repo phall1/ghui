@@ -24,8 +24,8 @@ import { DiffStats } from "./diffStats.js"
 import { Divider, fitCell, PaddedRow, PlainLine, TextLine } from "./primitives.js"
 import { shortRepoName } from "./pullRequests.js"
 
-const DiffPaneHeader = ({ pullRequest, paneWidth }: { pullRequest: PullRequestItem; paneWidth: number }) => {
-	const stats = diffStatText(pullRequest)
+const DiffPaneHeader = ({ pullRequest, paneWidth, loadingIndicator }: { pullRequest: PullRequestItem; paneWidth: number; loadingIndicator: string }) => {
+	const stats = diffStatText(pullRequest, loadingIndicator)
 	const headerWidth = Math.max(24, paneWidth - 2)
 	const leftHeader = `#${pullRequest.number} ${shortRepoName(pullRequest.repository)}`
 	const headerGap = Math.max(2, headerWidth - leftHeader.length - stats.length)
@@ -35,7 +35,7 @@ const DiffPaneHeader = ({ pullRequest, paneWidth }: { pullRequest: PullRequestIt
 				<span fg={colors.count}>#{pullRequest.number}</span>
 				<span fg={colors.muted}> {shortRepoName(pullRequest.repository)}</span>
 				<span fg={colors.muted}>{" ".repeat(headerGap)}</span>
-				<DiffStats pullRequest={pullRequest} />
+				<DiffStats pullRequest={pullRequest} loadingIndicator={loadingIndicator} />
 			</TextLine>
 		</PaddedRow>
 	)
@@ -132,7 +132,7 @@ export const PullRequestDiffPane = ({
 	if (!diffState || diffState._tag === "Loading") {
 		return (
 			<box width={paneWidth} height={height} flexDirection="column">
-				<DiffPaneHeader pullRequest={pullRequest} paneWidth={paneWidth} />
+				<DiffPaneHeader pullRequest={pullRequest} paneWidth={paneWidth} loadingIndicator={loadingIndicator} />
 				<Divider width={paneWidth} />
 				<LoadingPane content={{ title: `${loadingIndicator} Loading diff`, hint: "Fetching patch from GitHub" }} width={paneWidth} height={Math.max(1, height - 2)} />
 			</box>
@@ -206,7 +206,7 @@ export const PullRequestDiffPane = ({
 
 	return (
 		<box width={paneWidth} height={height} flexDirection="column">
-			<DiffPaneHeader pullRequest={pullRequest} paneWidth={paneWidth} />
+			<DiffPaneHeader pullRequest={pullRequest} paneWidth={paneWidth} loadingIndicator={loadingIndicator} />
 			<Divider width={paneWidth} />
 			<scrollbox
 				ref={scrollRef}
