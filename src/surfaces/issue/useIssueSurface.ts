@@ -16,6 +16,7 @@ import {
 	issueListAtom,
 	issueLoadMoreSlotAvailableAtom,
 	issueFetchInFlightAtom,
+	issueRetryProgressAtom,
 	issueOverridesAtom,
 	issueQueueLoadCacheAtom,
 	issuesAtom,
@@ -26,6 +27,7 @@ import {
 	selectedIssueAtom,
 	showIssueRepositoryGroupsAtom,
 } from "../../ui/issues/atoms.js"
+import type { RetryProgress } from "../../ui/FooterHints.js"
 import { useMemo } from "react"
 import { issueListRowIndex } from "../../ui/IssueList.js"
 import { selectedIssueIndexAtom } from "../../ui/listSelection/atoms.js"
@@ -66,6 +68,7 @@ export interface IssueSurfaceShell {
 	readonly loadMoreIssueRowSelected: boolean
 	readonly issueLoadMoreSlotAvailable: boolean
 	readonly issueFetchInFlight: boolean
+	readonly retryProgress: RetryProgress
 	readonly setIssueQueueLoadCache: SetState<Partial<Record<string, IssueLoad>>>
 	readonly currentIssueCacheKey: string
 	readonly issueAuthorFilterActive: boolean
@@ -103,6 +106,7 @@ export const useIssueSurface = (input: UseIssueSurfaceInput): IssueSurfaceShell 
 	const loadMoreIssueRowSelected = useAtomValue(loadMoreIssueRowSelectedAtom)
 	const issueLoadMoreSlotAvailable = useAtomValue(issueLoadMoreSlotAvailableAtom)
 	const issueFetchInFlight = useAtomValue(issueFetchInFlightAtom)
+	const retryProgress = useAtomValue(issueRetryProgressAtom)
 	const showIssueRepositoryGroups = useAtomValue(showIssueRepositoryGroupsAtom)
 
 	const issueLoad = useMemo(() => resolveIssueLoad(activeIssueView, issueQueueLoadCache, issuesResult), [activeIssueView, issueQueueLoadCache, issuesResult])
@@ -153,6 +157,7 @@ export const useIssueSurface = (input: UseIssueSurfaceInput): IssueSurfaceShell 
 		loadMoreIssueRowSelected,
 		issueLoadMoreSlotAvailable,
 		issueFetchInFlight,
+		retryProgress,
 		setIssueQueueLoadCache,
 		currentIssueCacheKey,
 		issueAuthorFilterActive,

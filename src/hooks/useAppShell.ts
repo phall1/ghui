@@ -278,7 +278,7 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 		pullRequestListRows,
 		setPullRequestOverrides,
 		setRecentlyCompletedPullRequests,
-		retryProgress,
+		retryProgress: pullRequestRetryProgress,
 		loadMorePullRequests,
 		isLoadingMorePullRequests,
 		resetLoadingMore,
@@ -317,6 +317,7 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 		loadMoreIssueRowSelected,
 		issueLoadMoreSlotAvailable,
 		issueFetchInFlight,
+		retryProgress: issueRetryProgress,
 		issueActiveFilterLabel,
 		setIssueOverrides,
 		showIssueRepositoryGroups,
@@ -324,6 +325,7 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 		isLoadingMoreIssues,
 		resetLoadingMoreIssues,
 	} = issueSurface
+	const retryProgress = activeWorkspaceSurface === "issues" ? issueRetryProgress : pullRequestRetryProgress
 	const refreshIssuesIfIdle = () => {
 		if (!issueFetchInFlight && !isLoadingMoreIssues) refreshIssues()
 	}
@@ -582,7 +584,7 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 
 	const detailPlaceholderContent = getDetailPlaceholderContent({
 		status: pullRequestStatus,
-		retryProgress,
+		retryProgress: pullRequestRetryProgress,
 		loadingIndicator,
 		visibleCount: visiblePullRequests.length,
 		filterText: visibleFilterText,

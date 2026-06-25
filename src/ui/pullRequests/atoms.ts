@@ -1,4 +1,4 @@
-import { Effect, Schedule } from "effect"
+import { Effect } from "effect"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import * as Atom from "effect/unstable/reactivity/Atom"
 import { config } from "../../config.js"
@@ -7,13 +7,13 @@ import { devLog } from "../../devLog.js"
 import { itemQueryCacheKeyHasRepository, type ItemListInput, searchQualifier } from "../../item.js"
 import { resolveItemLoad, trimItemLoadCache } from "../../item/load.js"
 import { loadItemQueue } from "../../item/queue.js"
+import { retryItemQueueFirstPage } from "../../item/retry.js"
 import { freshPullRequestLoad, mergePullRequestDetail } from "../../pullRequestCache.js"
 export { nextLoadAfterPage } from "../../pullRequestCache.js"
 import type { PullRequestLoad } from "../../pullRequestLoad.js"
 import { activePullRequestViews, initialPullRequestView, type PullRequestView, viewCacheKey, viewRepository, viewToListInput } from "../../pullRequestViews.js"
 import { CacheService } from "../../services/CacheService.js"
-import { isCommandTimeoutError } from "../../services/CommandRunner.js"
-import { GitHubService, isGitHubRateLimitError } from "../../services/GitHubService.js"
+import { GitHubService } from "../../services/GitHubService.js"
 import { githubRuntime, pullRequestPageSize } from "../../services/runtime.js"
 import { effectiveFilterQueryAtom } from "../filter/atoms.js"
 import { filterByScore, pullRequestFilterScore } from "../filter/scoring.js"
@@ -21,10 +21,7 @@ import { initialRetryProgress, RetryProgress } from "../FooterHints.js"
 import { selectedIndexAtom } from "../listSelection/atoms.js"
 import { groupBy } from "../pullRequests.js"
 
-export const PR_FETCH_RETRIES = 6
 const MAX_REPOSITORY_CACHE_ENTRIES = 8
-
-export const shouldRetryPullRequestFetch = (error: unknown): boolean => !isGitHubRateLimitError(error) && !isCommandTimeoutError(error)
 
 // === UI cache atoms ===
 export const labelCacheAtom = Atom.make<Record<string, readonly PullRequestLabel[]>>({}).pipe(Atom.keepAlive)
@@ -74,25 +71,9 @@ export const pullRequestsAtom = githubRuntime.atom(
 			writeCached: (viewer, queueLoad) => cacheService.writeQueue(viewer, queueLoad),
 			fetchFirstPage: (queueView) =>
 				Effect.gen(function* () {
-					yield* Atom.set(retryProgressAtom, initialRetryProgress)
 					const listInput = viewToListInput(queueView, null, Math.min(pullRequestPageSize, config.prFetchLimit))
 					devLog("pullRequestsAtom:fetch", { cacheKey, listInput, query: searchQualifier(listInput) })
-					const page = yield* github.listPullRequestPage(listInput).pipe(
-						Effect.tapError((error) =>
-							shouldRetryPullRequestFetch(error)
-								? Atom.update(retryProgressAtom, (current) =>
-										RetryProgress.Retrying({
-											attempt: Math.min(RetryProgress.$match(current, { Idle: () => 0, Retrying: ({ attempt }) => attempt }) + 1, PR_FETCH_RETRIES),
-											max: PR_FETCH_RETRIES,
-										}),
-									)
-								: Effect.void,
-						),
-						Effect.retry({ times: PR_FETCH_RETRIES, schedule: Schedule.exponential("300 millis", 2), while: shouldRetryPullRequestFetch }),
-						Effect.tapError(() => Atom.set(retryProgressAtom, initialRetryProgress)),
-					)
-					yield* Atom.set(retryProgressAtom, initialRetryProgress)
-					return page
+					return yield* retryItemQueueFirstPage(github.listPullRequestPage(listInput), retryProgressAtom)
 				}),
 			freshLoad: (queueView, page, existing) => freshPullRequestLoad(queueView, page, existing, config.prFetchLimit),
 			trimCache: trimQueueLoadCache,

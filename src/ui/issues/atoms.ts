@@ -6,6 +6,7 @@ import type { IssueItem } from "../../domain.js"
 import { itemQueryCacheKeyHasRepository, type ItemListInput } from "../../item.js"
 import { resolveItemLoad, trimItemLoadCache } from "../../item/load.js"
 import { loadItemQueue } from "../../item/queue.js"
+import { retryItemQueueFirstPage } from "../../item/retry.js"
 import type { IssueLoad } from "../../issueLoad.js"
 import { freshIssueLoad } from "../../issueCache.js"
 import { type IssueView, initialIssueView, issueViewCacheKey, issueViewMode, issueViewRepository, issueViewToListInput, issueViewToQuery } from "../../issueViews.js"
@@ -15,6 +16,7 @@ import { githubRuntime, pullRequestPageSize } from "../../services/runtime.js"
 import { selectedRepositoryAtom, workspaceSurfaceAtom } from "../../workspace/atoms.js"
 import { effectiveFilterQueryAtom } from "../filter/atoms.js"
 import { filterByScore, issueFilterScore } from "../filter/scoring.js"
+import { initialRetryProgress, RetryProgress } from "../FooterHints.js"
 import { orderIssuesForDisplay } from "../IssueList.js"
 import { selectedIssueIndexAtom } from "../listSelection/atoms.js"
 
@@ -25,6 +27,7 @@ export { initialIssueView, issueViewMode, issueViewRepository, issueViewToQuery,
 
 export const activeIssueViewAtom = Atom.make<IssueView>(initialIssueView(null)).pipe(Atom.keepAlive)
 export const issueOverridesAtom = Atom.make<Record<string, IssueItem>>({}).pipe(Atom.keepAlive)
+export const issueRetryProgressAtom = Atom.make<RetryProgress>(initialRetryProgress).pipe(Atom.keepAlive)
 
 // In-memory mirror of `queue_snapshots` for issues, keyed by `issueViewCacheKey`.
 // Mirrors `queueLoadCacheAtom` for PRs. Lets us paint the cached list before
@@ -48,7 +51,8 @@ export const issuesAtom = githubRuntime.atom(
 			getAuthenticatedUser: github.getAuthenticatedUser(),
 			readCached: (viewer, issueView) => cacheService.readIssueQueue(viewer, issueView),
 			writeCached: (viewer, load) => cacheService.writeIssueQueue(viewer, load),
-			fetchFirstPage: (issueView) => github.listIssuePage(issueViewToListInput(issueView, null, Math.min(pullRequestPageSize, config.prFetchLimit))),
+			fetchFirstPage: (issueView) =>
+				retryItemQueueFirstPage(github.listIssuePage(issueViewToListInput(issueView, null, Math.min(pullRequestPageSize, config.prFetchLimit))), issueRetryProgressAtom),
 			freshLoad: (issueView, page) => freshIssueLoad(issueView, page, config.prFetchLimit),
 			trimCache: trimIssueQueueLoadCache,
 		})
