@@ -1,7 +1,7 @@
 import { useAtom, useAtomSet } from "@effect/atom-react"
-import { type MutableRefObject, useRef } from "react"
+import type { MutableRefObject } from "react"
 import { config } from "../config.js"
-import { errorMessage } from "../errors.js"
+import { useItemLoadMore } from "./useItemLoadMore.js"
 import { type IssueView, issueViewToListInput } from "../issueViews.js"
 import { itemQueueCacheViewer } from "../item/queue.js"
 import { nextIssueLoadAfterPage } from "../issueCache.js"
@@ -27,19 +27,7 @@ export interface UseIssuesLoadMoreResult {
 	readonly resetLoadingMoreIssues: () => void
 }
 
-const LOAD_MORE_TIMEOUT_MS = 15_000
-
-/**
- * Issue load-more state machine. Mirrors `useLoadMore` for PRs:
- *   - `inFlightKeyRef` is the synchronous "is a fetch in flight" lock so
- *     same-tick triggers can't race.
- *   - `refreshGenerationRef` drops responses from views the user has
- *     navigated away from.
- *   - A per-invocation token prevents an old A request from clearing a newer
- *     A request after A → B → A navigation.
- *   - 15s timeout surfaces a hanging GraphQL response as a flash notice
- *     instead of wedging the spinner.
- */
+/** Typed Issue adapter for the shared Item load-more state machine. */
 export const useIssuesLoadMore = ({
 	activeIssueView,
 	currentIssueCacheKey,
@@ -53,58 +41,27 @@ export const useIssuesLoadMore = ({
 }: UseIssuesLoadMoreInput): UseIssuesLoadMoreResult => {
 	const loadIssuePage = useAtomSet(listIssuePageAtom, { mode: "promise" })
 	const writeIssueQueue = useAtomSet(writeIssueQueueAtom, { mode: "promise" })
-	const inFlightRef = useRef<{ readonly key: string; readonly id: number } | null>(null)
-	const requestIdRef = useRef(0)
 	const [loadingMoreKey, setLoadingMoreKey] = useAtom(loadingMoreIssueKeyAtom)
-	const isLoadingMoreIssues = loadingMoreKey === currentIssueCacheKey
+	const { loadMore, isLoadingMore, resetLoadingMore } = useItemLoadMore({
+		cacheKey: currentIssueCacheKey,
+		load: issueLoad,
+		hasMore: hasMoreIssues,
+		fetchInFlight: issueFetchInFlight,
+		itemLimit: config.prFetchLimit,
+		pageSize: pullRequestPageSize,
+		refreshGenerationRef,
+		loadingMoreKey,
+		setLoadingMoreKey,
+		fetchPage: (cursor, pageSize) => loadIssuePage(issueViewToListInput(activeIssueView, cursor, pageSize)),
+		mergePage: (current, page) => nextIssueLoadAfterPage(current, page, config.prFetchLimit),
+		setLoadCache: setIssueQueueLoadCache,
+		persistLoad: (load) => {
+			const viewer = itemQueueCacheViewer(activeIssueView, username)
+			if (viewer) return writeIssueQueue({ viewer, load })
+		},
+		flashNotice,
+		timeoutMessage: "Load more issues timed out after 15s",
+	})
 
-	const loadMoreIssues = (): boolean => {
-		if (inFlightRef.current !== null) return false
-		if (issueFetchInFlight) return false
-		if (!issueLoad || !hasMoreIssues || !issueLoad.endCursor) return false
-		const remaining = config.prFetchLimit - issueLoad.data.length
-		if (remaining <= 0) return false
-		const cacheKey = currentIssueCacheKey
-		const generation = refreshGenerationRef.current
-		const request = { key: cacheKey, id: ++requestIdRef.current }
-		inFlightRef.current = request
-		setLoadingMoreKey(cacheKey)
-		const fetchPromise = loadIssuePage(issueViewToListInput(activeIssueView, issueLoad.endCursor, Math.min(pullRequestPageSize, remaining)))
-		let timeoutId: ReturnType<typeof globalThis.setTimeout> | null = null
-		const timeoutPromise = new Promise<never>((_, reject) => {
-			timeoutId = globalThis.setTimeout(() => reject(new Error(`Load more issues timed out after ${LOAD_MORE_TIMEOUT_MS / 1000}s`)), LOAD_MORE_TIMEOUT_MS)
-		})
-		void Promise.race([fetchPromise, timeoutPromise])
-			.then((page) => {
-				if (generation !== refreshGenerationRef.current) return
-				// TOCTOU fix — see useLoadMore.ts for the longer note.
-				let persistedLoad: IssueLoad | null = null
-				setIssueQueueLoadCache((current) => {
-					const currentLoad = current[cacheKey]
-					if (!currentLoad) return current
-					persistedLoad = nextIssueLoadAfterPage(currentLoad, page, config.prFetchLimit)
-					return { ...current, [cacheKey]: persistedLoad }
-				})
-				if (!persistedLoad) return
-				const viewer = itemQueueCacheViewer(activeIssueView, username)
-				if (viewer) void writeIssueQueue({ viewer, load: persistedLoad }).catch(() => {})
-			})
-			.catch((error) => {
-				flashNotice(errorMessage(error))
-			})
-			.finally(() => {
-				if (timeoutId !== null) globalThis.clearTimeout(timeoutId)
-				if (inFlightRef.current !== request) return
-				inFlightRef.current = null
-				setLoadingMoreKey((current) => (current === request.key ? null : current))
-			})
-		return true
-	}
-
-	const resetLoadingMoreIssues = () => {
-		inFlightRef.current = null
-		setLoadingMoreKey(null)
-	}
-
-	return { loadMoreIssues, isLoadingMoreIssues, resetLoadingMoreIssues }
+	return { loadMoreIssues: loadMore, isLoadingMoreIssues: isLoadingMore, resetLoadingMoreIssues: resetLoadingMore }
 }
