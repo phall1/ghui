@@ -6,6 +6,7 @@ import type { DetailCommentsStatus, DetailPlaceholderContent } from "../ui/Detai
 import type { DiffFilePatch, DiffView, DiffWhitespaceMode, DiffWrapMode, PullRequestDiffState, StackedDiffCommentAnchor, StackedDiffFilePatch } from "../ui/diff.js"
 import type { ChangedFileSearchResult } from "../ui/modals/shared.js"
 import type { OrderedComment } from "../ui/CommentsPane.js"
+import type { CommentLoadState } from "../ui/comments/loadState.js"
 import type { RepositoryListItem } from "../ui/RepoList.js"
 import type { WorkspaceSurface } from "../workspaceSurfaces.js"
 import type { WorkspaceLayout } from "../workspace/layout.js"
@@ -30,6 +31,7 @@ export interface WorkspaceContentProps {
 	readonly selectedPullRequest: PullRequestItem | null
 	readonly selectedComments: readonly PullRequestComment[]
 	readonly selectedCommentsStatus: DetailCommentsStatus
+	readonly selectedCommentsLoadState: CommentLoadState
 	readonly detailPlaceholderContent: DetailPlaceholderContent
 	readonly isSelectedPullRequestDetailLoading: boolean
 	readonly isSelectedPullRequestDetailError: boolean
@@ -160,6 +162,7 @@ export const WorkspaceContent = (props: WorkspaceContentProps) => {
 			selectedPullRequest={props.selectedPullRequest}
 			selectedComments={props.selectedComments}
 			selectedCommentsStatus={props.selectedCommentsStatus}
+			selectedCommentsLoadState={props.selectedCommentsLoadState}
 			detailPlaceholderContent={props.detailPlaceholderContent}
 			isSelectedPullRequestDetailLoading={props.isSelectedPullRequestDetailLoading}
 			isSelectedPullRequestDetailError={props.isSelectedPullRequestDetailError}

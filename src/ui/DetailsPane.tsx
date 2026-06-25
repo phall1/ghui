@@ -30,7 +30,7 @@ export const DETAIL_BODY_LINES = 6
 export const DETAIL_PLACEHOLDER_ROWS = 4
 export const DETAIL_BODY_SCROLL_LIMIT = 1_000
 
-export type DetailCommentsStatus = "idle" | "loading" | "ready"
+export type DetailCommentsStatus = "idle" | "loading" | "ready" | "error"
 
 const codeFencePattern = /^```\s*([a-zA-Z0-9_-]+)?/
 const codeTokenPattern =

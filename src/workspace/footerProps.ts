@@ -17,7 +17,7 @@ export interface ComputeFooterPropsInput {
 	readonly diffFullView: boolean
 	readonly diffCommentRangeActive: boolean
 	readonly commentsViewActive: boolean
-	readonly selectedCommentsStatus: "idle" | "loading" | "ready"
+	readonly selectedCommentsStatus: "idle" | "loading" | "ready" | "error"
 	readonly selectedOrderedComment: PullRequestComment | null
 	readonly username: string | null
 	readonly selectedCommentsLength: number
@@ -52,7 +52,8 @@ export const computeFooterProps = (input: ComputeFooterPropsInput): WorkspaceFoo
 	diffFullView: input.diffFullView,
 	diffRangeActive: input.diffCommentRangeActive,
 	commentsViewActive: input.commentsViewActive,
-	commentsViewOnRealComment: input.commentsViewActive && input.selectedCommentsStatus === "ready" && input.selectedOrderedComment !== null,
+	commentsViewOnRealComment:
+		input.commentsViewActive && input.selectedCommentsStatus !== "idle" && input.selectedCommentsStatus !== "loading" && input.selectedOrderedComment !== null,
 	commentsViewCanEditSelected: canEditComment(input.selectedOrderedComment, input.username),
 	commentsViewCount: input.selectedCommentsLength,
 	hasSelection: input.selectedCommentSubject !== null,

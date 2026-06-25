@@ -30,7 +30,7 @@ export interface UseCommandRegistryInput {
 		readonly selectedDiffCommentThreadCount: number
 		readonly hasDiffCommentThreads: boolean
 		readonly diffRangeActive: boolean
-		readonly selectedCommentsStatus: "idle" | "loading" | "ready"
+		readonly selectedCommentsStatus: "idle" | "loading" | "ready" | "error"
 		readonly selectedOrderedComment: PullRequestComment | null
 		readonly username: string | null
 	}
@@ -99,7 +99,8 @@ export const useCommandRegistry = ({
 			selectedDiffCommentThreadCount: runtimeSnapshot.selectedDiffCommentThreadCount,
 			hasDiffCommentThreads: runtimeSnapshot.hasDiffCommentThreads,
 			diffRangeActive: runtimeSnapshot.diffRangeActive,
-			hasSelectedComment: runtimeSnapshot.selectedCommentsStatus === "ready" && runtimeSnapshot.selectedOrderedComment !== null,
+			hasSelectedComment:
+				runtimeSnapshot.selectedCommentsStatus !== "idle" && runtimeSnapshot.selectedCommentsStatus !== "loading" && runtimeSnapshot.selectedOrderedComment !== null,
 			canEditSelectedComment: canEditComment(runtimeSnapshot.selectedOrderedComment, runtimeSnapshot.username),
 		})
 	}, [

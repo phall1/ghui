@@ -14,6 +14,7 @@ import type { ThemeId } from "../ui/colors.js"
 import { colors } from "../ui/colors.js"
 import { ActiveFilterBar, ACTIVE_FILTER_BAR_HEIGHT } from "../ui/ActiveFilterBar.js"
 import { CommentsPane, type OrderedComment } from "../ui/CommentsPane.js"
+import type { CommentLoadState } from "../ui/comments/loadState.js"
 import { DETAIL_BODY_SCROLL_LIMIT, DetailBody, DetailHeader, DetailPlaceholder, DetailsPane, type DetailCommentsStatus, type DetailPlaceholderContent } from "../ui/DetailsPane.js"
 import { DiffFilePanel, diffFilePanelDividerRows } from "../ui/diff/DiffFilePanel.js"
 import { SplitPane } from "../ui/paneLayout.js"
@@ -53,6 +54,7 @@ export interface PullRequestSurfaceProps {
 	readonly selectedPullRequest: PullRequestItem | null
 	readonly selectedComments: readonly PullRequestComment[]
 	readonly selectedCommentsStatus: DetailCommentsStatus
+	readonly selectedCommentsLoadState: CommentLoadState
 	readonly detailPlaceholderContent: DetailPlaceholderContent
 	readonly isSelectedPullRequestDetailLoading: boolean
 	readonly isSelectedPullRequestDetailError: boolean
@@ -117,6 +119,7 @@ export const PullRequestSurface = (props: PullRequestSurfaceProps) => {
 		selectedPullRequest,
 		selectedComments,
 		selectedCommentsStatus,
+		selectedCommentsLoadState,
 		detailPlaceholderContent,
 		isSelectedPullRequestDetailLoading,
 		isSelectedPullRequestDetailError,
@@ -154,7 +157,7 @@ export const PullRequestSurface = (props: PullRequestSurfaceProps) => {
 				item={commentSubject}
 				comments={selectedComments}
 				orderedComments={orderedComments}
-				status={selectedCommentsStatus}
+				loadState={selectedCommentsLoadState}
 				selectedIndex={commentsViewSelection}
 				contentWidth={fullscreenContentWidth}
 				paneWidth={contentWidth}

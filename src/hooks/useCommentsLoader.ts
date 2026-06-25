@@ -3,18 +3,17 @@ import type { IssueItem, PullRequestComment, PullRequestItem } from "../domain.j
 import { errorMessage } from "../errors.js"
 import { capRecord } from "../recordCap.js"
 import { pullRequestDiffKey } from "../ui/diff.js"
+import type { StoredCommentLoadState } from "../ui/comments/loadState.js"
 
 // Cap of the in-memory comments cache. One entry per PR/issue ever opened;
 // without a cap, day-long TUI sessions accumulate forever.
 const COMMENTS_CACHE_CAP = 64
 
-type CommentStatus = "loading" | "ready"
-
 export interface UseCommentsLoaderInput {
 	readonly refreshGenerationRef: MutableRefObject<number>
-	readonly readCommentsLoadState: () => Record<string, CommentStatus>
+	readonly readCommentsLoadState: () => Record<string, StoredCommentLoadState>
 	readonly setPullRequestComments: (next: (prev: Record<string, readonly PullRequestComment[]>) => Record<string, readonly PullRequestComment[]>) => void
-	readonly setPullRequestCommentsLoaded: (next: (prev: Record<string, CommentStatus>) => Record<string, CommentStatus>) => void
+	readonly setPullRequestCommentsLoaded: (next: (prev: Record<string, StoredCommentLoadState>) => Record<string, StoredCommentLoadState>) => void
 	readonly listPullRequestComments: (input: { repository: string; number: number }) => Promise<readonly PullRequestComment[]>
 	readonly listIssueComments: (input: { repository: string; number: number }) => Promise<readonly PullRequestComment[]>
 	readonly flashNotice: (msg: string) => void
@@ -31,8 +30,7 @@ export interface CommentsLoader {
  *   - Mark the key "loading", call the GH service, store results.
  *   - Snapshot a refresh generation up front; ignore the response if the
  *     generation has moved on (a refresh wiped the cache mid-flight).
- *   - On error: roll the key's load state back to its previous value
- *     (or clear it) and flash the notice.
+ *   - On error: retain an actionable error state and any cached data.
  */
 export const useCommentsLoader = ({
 	refreshGenerationRef,
@@ -47,22 +45,19 @@ export const useCommentsLoader = ({
 		const previousLoadState = readCommentsLoadState()[key]
 		if (!force && previousLoadState) return
 		const generation = refreshGenerationRef.current
-		setPullRequestCommentsLoaded((current) => capRecord({ ...current, [key]: "loading" }, COMMENTS_CACHE_CAP))
+		const cached = previousLoadState?.status === "ready" || previousLoadState?.cached === true
+		setPullRequestCommentsLoaded((current) => capRecord({ ...current, [key]: { status: "loading", cached } }, COMMENTS_CACHE_CAP))
 		void fetch()
 			.then((items) => {
 				if (generation !== refreshGenerationRef.current) return
 				setPullRequestComments((current) => capRecord({ ...current, [key]: items }, COMMENTS_CACHE_CAP))
-				setPullRequestCommentsLoaded((current) => capRecord({ ...current, [key]: "ready" }, COMMENTS_CACHE_CAP))
+				setPullRequestCommentsLoaded((current) => capRecord({ ...current, [key]: { status: "ready" } }, COMMENTS_CACHE_CAP))
 			})
 			.catch((error) => {
 				if (generation !== refreshGenerationRef.current) return
-				setPullRequestCommentsLoaded((current) => {
-					if (previousLoadState === "ready") return { ...current, [key]: previousLoadState }
-					const next = { ...current }
-					delete next[key]
-					return next
-				})
-				flashNotice(errorMessage(error))
+				const message = errorMessage(error)
+				setPullRequestCommentsLoaded((current) => capRecord({ ...current, [key]: { status: "error", error: message, cached } }, COMMENTS_CACHE_CAP))
+				flashNotice(message)
 			})
 	}
 

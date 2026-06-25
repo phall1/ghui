@@ -1,6 +1,7 @@
 import { useEffect, type MutableRefObject } from "react"
 import type { PullRequestComment, PullRequestItem } from "../domain.js"
 import type { LoadStatus } from "../domain.js"
+import type { StoredCommentLoadState } from "../ui/comments/loadState.js"
 
 interface PullRequestLoadShape {
 	readonly fetchedAt?: Date | null
@@ -21,7 +22,7 @@ export interface UsePullRequestRefreshInput {
 	readonly setPullRequestOverrides: (next: Readonly<Record<string, PullRequestItem>>) => void
 	readonly setRecentlyCompletedPullRequests: (next: Readonly<Record<string, PullRequestItem>>) => void
 	readonly setPullRequestComments: (next: Readonly<Record<string, readonly PullRequestComment[]>>) => void
-	readonly setPullRequestCommentsLoaded: (next: Readonly<Record<string, "loading" | "ready">>) => void
+	readonly setPullRequestCommentsLoaded: (next: Readonly<Record<string, StoredCommentLoadState>>) => void
 	readonly setNotice: (next: string | null) => void
 	readonly armRefreshToast: (message: string) => void
 	readonly refreshPullRequestsAtom: () => void

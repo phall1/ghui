@@ -356,13 +356,22 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 	const pullRequestComments = useAtomValue(pullRequestCommentsAtom)
 	const selectedDiffKey = useAtomValue(selectedDiffKeyAtom)
 	const selectedDiffState = useAtomValue(selectedDiffStateAtom)
-	const { selectedCommentSubject, selectedCommentKey, selectedItemLabels, selectedComments, selectedCommentsStatus, effectiveDiffRenderView, readyDiffFiles, changedFileResults } =
-		useSelectionDerivations({
-			diffRenderView,
-			contentWidth,
-			changedFilesModalActive,
-			changedFilesQuery: changedFilesModal.query,
-		})
+	const {
+		selectedCommentSubject,
+		selectedCommentKey,
+		selectedItemLabels,
+		selectedComments,
+		selectedCommentsStatus,
+		selectedCommentsLoadState,
+		effectiveDiffRenderView,
+		readyDiffFiles,
+		changedFileResults,
+	} = useSelectionDerivations({
+		diffRenderView,
+		contentWidth,
+		changedFilesModalActive,
+		changedFilesQuery: changedFilesModal.query,
+	})
 	const {
 		displayedDiffState,
 		stackedDiffFiles,
@@ -1191,6 +1200,7 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 			selectedPullRequest,
 			selectedComments,
 			selectedCommentsStatus,
+			selectedCommentsLoadState,
 			detailPlaceholderContent,
 			isSelectedPullRequestDetailLoading,
 			isSelectedPullRequestDetailError,

@@ -7,12 +7,13 @@ import { selectedIssueAtom } from "../issues/atoms.js"
 import { selectedPullRequestAtom } from "../pullRequests/atoms.js"
 import { workspaceSurfaceAtom } from "../../workspace/atoms.js"
 import { commentsViewRowCount, orderCommentsForDisplay, type OrderedComment } from "../CommentsPane.js"
+import { idleCommentLoadState, type CommentLoadState, type StoredCommentLoadState } from "./loadState.js"
 
 // === UI state atoms ===
 export const commentsViewActiveAtom = Atom.make(false)
 export const commentsViewSelectionAtom = Atom.make(0)
 export const pullRequestCommentsAtom = Atom.make<Record<string, readonly PullRequestComment[]>>({}).pipe(Atom.keepAlive)
-export const pullRequestCommentsLoadedAtom = Atom.make<Record<string, "loading" | "ready">>({}).pipe(Atom.keepAlive)
+export const pullRequestCommentsLoadedAtom = Atom.make<Record<string, StoredCommentLoadState>>({}).pipe(Atom.keepAlive)
 
 // === Derived selection atoms ===
 //
@@ -47,11 +48,13 @@ export const selectedCommentsAtom = Atom.make((get): readonly PullRequestComment
 	return get(pullRequestCommentsAtom)[key] ?? []
 })
 
-export const selectedCommentsStatusAtom = Atom.make((get): "idle" | "loading" | "ready" => {
+export const selectedCommentsLoadStateAtom = Atom.make((get): CommentLoadState => {
 	const key = get(selectedCommentKeyAtom)
-	if (!key) return "idle"
-	return get(pullRequestCommentsLoadedAtom)[key] ?? "idle"
+	if (!key) return idleCommentLoadState
+	return get(pullRequestCommentsLoadedAtom)[key] ?? idleCommentLoadState
 })
+
+export const selectedCommentsStatusAtom = Atom.make((get): "idle" | "loading" | "ready" | "error" => get(selectedCommentsLoadStateAtom).status)
 
 export const orderedCommentsAtom = Atom.make((get): readonly OrderedComment[] => orderCommentsForDisplay(get(selectedCommentsAtom)))
 

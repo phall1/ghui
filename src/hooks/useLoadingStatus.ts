@@ -25,7 +25,7 @@ export interface UseLoadingStatusInput {
 	readonly issueFetchInFlight: boolean
 	readonly isLoadingMoreIssues: boolean
 	readonly activeWorkspaceSurface: "pullRequests" | "issues" | "repos"
-	readonly selectedCommentsStatus: "idle" | "loading" | "ready"
+	readonly selectedCommentsStatus: "idle" | "loading" | "ready" | "error"
 	readonly selectedDiffState: PullRequestDiffState | undefined
 	readonly labelModal: LabelModalState
 	readonly closeModal: CloseModalState
