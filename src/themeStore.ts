@@ -14,6 +14,8 @@ interface StoredConfig {
 	readonly diffWhitespaceMode?: unknown
 	readonly systemThemeAutoReload?: unknown
 	readonly showScrollbars?: unknown
+	readonly editorCommand?: unknown
+	readonly repoPaths?: unknown
 }
 
 const configDirectory = () => {
@@ -76,6 +78,26 @@ export const loadStoredShowScrollbars: Effect.Effect<boolean> = Effect.catchCaus
 		return typeof config.showScrollbars === "boolean" ? config.showScrollbars : false
 	}),
 	() => Effect.succeed(false),
+)
+
+export interface StoredEditorConfig {
+	readonly editorCommand: string | null
+	readonly repoPaths: Readonly<Record<string, string>>
+}
+
+const parseRepoPaths = (value: unknown): Readonly<Record<string, string>> => {
+	if (!value || typeof value !== "object") return {}
+	const entries = Object.entries(value as Record<string, unknown>).filter(([, path]) => typeof path === "string" && path.length > 0) as [string, string][]
+	return Object.fromEntries(entries)
+}
+
+export const loadStoredEditorConfig: Effect.Effect<StoredEditorConfig> = Effect.catchCause(
+	Effect.tryPromise(async () => {
+		const config = await readStoredConfig()
+		const editorCommand = typeof config.editorCommand === "string" && config.editorCommand.trim().length > 0 ? config.editorCommand : null
+		return { editorCommand, repoPaths: parseRepoPaths(config.repoPaths) }
+	}),
+	() => Effect.succeed({ editorCommand: null, repoPaths: {} } satisfies StoredEditorConfig),
 )
 
 export const saveStoredThemeId = (theme: ThemeId): Effect.Effect<void> =>

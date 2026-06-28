@@ -31,6 +31,7 @@ import { useScrollRefs } from "./useScrollRefs.js"
 import { useCommentsLoader } from "./useCommentsLoader.js"
 import { useCommentsViewActions } from "./useCommentsViewActions.js"
 import { useDiffLoader } from "./useDiffLoader.js"
+import { useRunsView } from "./useRunsView.js"
 import { useLinkNavigation } from "./useLinkNavigation.js"
 import { useLoadingStatus } from "./useLoadingStatus.js"
 import { useCommandRegistry } from "./useCommandRegistry.js"
@@ -48,6 +49,7 @@ import { useDiffViewState } from "./useDiffViewState.js"
 import { useViewModeState } from "./useViewModeState.js"
 import { useFilterModal } from "../ui/filter/useFilterModal.js"
 import { DIFF_FILE_PANEL_AUTO_THRESHOLD, diffFilePanelOverrideAtom, selectedDiffKeyAtom, selectedDiffStateAtom } from "../ui/diff/atoms.js"
+import { runsFullViewAtom } from "../ui/runs/atoms.js"
 import { diffCommentThreadMapKey } from "../ui/diff/comments.js"
 import { useDiffLineColors } from "../ui/diff/useDiffLineColors.js"
 import { useDiffLocationPreservation } from "../ui/diff/useDiffLocationPreservation.js"
@@ -76,6 +78,14 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 	const setQueueSelection = useAtomSet(queueSelectionAtom)
 	const [selectedIndex, setSelectedIndex] = useAtom(selectedIndexAtom)
 	const [notice, setNotice] = useAtom(noticeAtom)
+	// Every notice auto-expires, regardless of who set it — command-side writers
+	// (`Atom.set(noticeAtom, …)`) don't go through `useFlashNotice`'s timer, so
+	// without this they'd linger until the next overwrite. ~2.5s matches the hook.
+	useEffect(() => {
+		if (notice === null) return
+		const handle = globalThis.setTimeout(() => setNotice((current) => (current === notice ? null : current)), 2500)
+		return () => globalThis.clearTimeout(handle)
+	}, [notice, setNotice])
 	const [filterQuery, setFilterQuery] = useAtom(filterQueryAtom)
 	const [filterDraft, setFilterDraft] = useAtom(filterDraftAtom)
 	const [filterMode, setFilterMode] = useAtom(filterModeAtom)
@@ -180,7 +190,8 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 	const terminalWidth = width ?? 100
 	const terminalHeight = height ?? 24
 	const terminalTooSmall = isTerminalTooSmall(terminalWidth, terminalHeight)
-	const showWorkspaceTabs = !detailFullView && !diffFullView && !commentsViewActive
+	const runsFullView = useAtomValue(runsFullViewAtom)
+	const showWorkspaceTabs = !detailFullView && !diffFullView && !runsFullView && !commentsViewActive
 	const diffFilePanelOverride = useAtomValue(diffFilePanelOverrideAtom)
 	const setDiffFilePanelOverride = useAtomSet(diffFilePanelOverrideAtom)
 	// Effective panel visibility: the override (true/false) wins if set, else
@@ -603,6 +614,8 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 	const isSelectedPullRequestDetailError = selectedPullRequest !== null && !selectedPullRequest.detailLoaded && selectedPullRequestDetailError !== null
 	const halfPage = Math.max(1, Math.floor(wideBodyHeight / 2))
 
+	const runsView = useRunsView(selectedPullRequest, halfPage)
+
 	const { loadPullRequestDiff } = useDiffLoader({
 		registry,
 		setPullRequestDiffCache,
@@ -952,6 +965,8 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 		commandPaletteActive,
 		filterMode,
 		diffFullView,
+		runsFullView: runsView.runsFullView,
+		runsViewCtx: runsView.ctx,
 		detailFullView,
 		commentsViewActive,
 		themeModal,
@@ -1072,6 +1087,7 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 		showWorkspaceTabs,
 		detailFullView,
 		diffFullView,
+		runsFullView,
 		commentsViewActive,
 		activeWorkspaceSurface,
 		workspaceTabSurfaces,
@@ -1146,6 +1162,8 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 		detailFullView,
 		diffFullView,
 		diffCommentRangeActive,
+		runsFullView,
+		runsInDetail: runsView.inDetail,
 		commentsViewActive,
 		selectedCommentsStatus,
 		selectedOrderedComment,
@@ -1192,6 +1210,7 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 			activeWorkspaceSurface,
 			commentsViewActive,
 			diffFullView,
+			runsView,
 			detailFullView,
 			layout,
 			derivations,

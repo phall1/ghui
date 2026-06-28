@@ -60,6 +60,7 @@ bun run dev
 ## Configuration
 
 - `GHUI_PR_FETCH_LIMIT`: max PRs fetched, defaults to `200`
+- `GHUI_RUN_FETCH_LIMIT`: max workflow runs fetched per PR, defaults to `20`
 
 Example:
 
@@ -91,6 +92,66 @@ Scrollable panes hide their scrollbar rails by default. Set `showScrollbars`
 to `true` to display them while retaining the same keyboard and mouse scrolling
 behavior.
 
+### Open in editor
+
+Press `e` on a pull request (in the list, detail, or diff view) to hand it off
+to your editor. ghui suspends the TUI, runs your command attached to the
+terminal, and resumes when it exits.
+
+Configure this in `config.json`:
+
+```json
+{
+	"editorCommand": "tmux new-window -c {{repoPath}} 'gh pr checkout {{number}} && nvim -c \":DiffviewOpen {{baseRef}}...{{headRef}}\"'",
+	"repoPaths": {
+		"kitlangton/ghui": "~/code/ghui",
+		"kitlangton/*": "~/code/repos/kitlangton/*",
+		":owner/:repo": "~/src/github.com/:owner/:repo"
+	}
+}
+```
+
+`repoPaths` maps a repository to a local clone, matched in order: an exact
+`owner/repo` key, then an owner wildcard (`owner/*`, where `*` becomes the repo
+name), then the generic `:owner/:repo` template. `~` expands to your home
+directory.
+
+`editorCommand` is a shell command template with these substitutions:
+
+- `{{repo}}` — full `owner/repo`
+- `{{owner}}`, `{{name}}`
+- `{{number}}` — PR number
+- `{{headRef}}` — PR head branch
+- `{{baseRef}}` — base branch
+- `{{author}}`
+- `{{url}}`
+- `{{repoPath}}` — resolved local path (requires a matching `repoPaths` entry)
+
+If `editorCommand` is omitted, ghui falls back to `$VISUAL`/`$EDITOR` opening
+the resolved `repoPath`. Some common recipes:
+
+```jsonc
+// diffview.nvim: checkout the branch and diff against base
+"editorCommand": "tmux new-window -c {{repoPath}} 'gh pr checkout {{number}} && nvim -c \":DiffviewOpen {{baseRef}}...{{headRef}}\"'"
+
+// octo.nvim: review via the GitHub API (no checkout)
+"editorCommand": "tmux new-window -c {{repoPath}} 'nvim -c \":silent Octo pr edit {{number}}\"'"
+
+// VS Code
+"editorCommand": "code {{repoPath}}"
+```
+
+### Workflow runs
+
+Press `a` on a pull request to open its **GitHub Actions runs** full-screen,
+scoped to the PR's head commit:
+
+- The runs list shows each workflow run with status, conclusion, duration, and age.
+- `enter` drills into a run to see its jobs and steps; failing steps are easy to spot.
+- `n` / `p` jump between failures, `enter` expands a step, `o` opens the run in your browser, `r` refreshes, and `esc` walks back out.
+
+Requires the GitHub CLI (`gh`) the same as the rest of ghui; nothing extra to configure.
+
 ## Keybindings
 
 - `up` / `down`: move selection
@@ -104,6 +165,7 @@ behavior.
 - `esc`: return from expanded details, leave diff/comment mode, or close modal
 - `r`: refresh
 - `d`: view stacked diff for all changed files
+- `a`: view this PR's GitHub Actions runs (jobs, steps, and failing logs)
 - `shift-r`: review or approve the selected pull request
 - `up` / `down` / `pageup` / `pagedown`: move comment target while viewing a diff
 - `enter`: open a commented diff line, or start a comment on an uncommented line
@@ -118,6 +180,7 @@ behavior.
 - `t`: choose a fixed theme, including `System` to match your terminal colors; press `m` in the theme picker to follow the OS light/dark appearance with separate theme choices
 - `l`: manage labels
 - `o`: open PR in browser
+- `e`: open PR in your editor (configurable; see `editorCommand` / `repoPaths`)
 - `y`: copy PR metadata
 - `q`: quit
 

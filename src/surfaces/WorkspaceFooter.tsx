@@ -11,6 +11,8 @@ export interface WorkspaceFooterProps {
 	readonly detailFullView: boolean
 	readonly diffFullView: boolean
 	readonly diffRangeActive: boolean
+	readonly runsFullView: boolean
+	readonly runsInDetail: boolean
 	readonly commentsViewActive: boolean
 	readonly commentsViewOnRealComment: boolean
 	readonly commentsViewCanEditSelected: boolean
@@ -42,6 +44,8 @@ export const WorkspaceFooter = ({ footerNotice, ...hints }: WorkspaceFooterProps
 				detailFullView={hints.detailFullView}
 				diffFullView={hints.diffFullView}
 				diffRangeActive={hints.diffRangeActive}
+				runsFullView={hints.runsFullView}
+				runsInDetail={hints.runsInDetail}
 				commentsViewActive={hints.commentsViewActive}
 				commentsViewOnRealComment={hints.commentsViewOnRealComment}
 				commentsViewCanEditSelected={hints.commentsViewCanEditSelected}

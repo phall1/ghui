@@ -16,6 +16,7 @@ export const buildDetailViewCtx = ({ halfPage, activeSurface, scrollDetailFullVi
 	closeDetail: () => runCommandById("detail.close"),
 	openTheme: () => runCommandById("theme.open"),
 	openDiff: () => runCommandById("diff.open"),
+	openRuns: () => runCommandById("runs.open"),
 	openComments: () => runCommandById("comments.open"),
 	closeSelectedItem: () => runCommandById(activeSurface === "issues" ? "issue.close" : "pull.close"),
 	openLabels: () => runCommandById("pull.labels"),
@@ -24,5 +25,6 @@ export const buildDetailViewCtx = ({ halfPage, activeSurface, scrollDetailFullVi
 	openReview: () => runCommandById("pull.submit-review"),
 	refresh: () => runCommandById(activeSurface === "issues" ? "issue.refresh" : "pull.refresh"),
 	openInBrowser: () => runCommandById(activeSurface === "issues" ? "issue.open-browser" : "pull.open-browser"),
+	openInEditor: () => runCommandById("pull.open-editor"),
 	copyMetadata: () => runCommandById(activeSurface === "issues" ? "issue.copy-metadata" : "pull.copy-metadata"),
 })

@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect } from "effect"
-import { loadStoredShowScrollbars, loadStoredSystemThemeAutoReload } from "../src/themeStore.js"
+import { loadStoredEditorConfig, loadStoredShowScrollbars, loadStoredSystemThemeAutoReload } from "../src/themeStore.js"
 
 const originalConfigDir = process.env.GHUI_CONFIG_DIR
 const tempDirs: string[] = []
@@ -75,5 +75,39 @@ describe("loadStoredShowScrollbars", () => {
 		await useTempConfig('{"showScrollbars":"true"}')
 
 		expect(await loadShowScrollbars()).toBe(false)
+	})
+})
+
+const loadEditorConfig = () => Effect.runPromise(loadStoredEditorConfig)
+
+describe("loadStoredEditorConfig", () => {
+	test("defaults to no command and empty repoPaths", async () => {
+		await useTempConfig()
+
+		expect(await loadEditorConfig()).toEqual({ editorCommand: null, repoPaths: {} })
+	})
+
+	test("reads editorCommand and repoPaths", async () => {
+		await useTempConfig('{"editorCommand":"nvim {{repoPath}}","repoPaths":{"dlvhdr/gh-dash":"~/code/gh-dash"}}')
+
+		expect(await loadEditorConfig()).toEqual({ editorCommand: "nvim {{repoPath}}", repoPaths: { "dlvhdr/gh-dash": "~/code/gh-dash" } })
+	})
+
+	test("treats blank editorCommand as unset", async () => {
+		await useTempConfig('{"editorCommand":"   "}')
+
+		expect((await loadEditorConfig()).editorCommand).toBeNull()
+	})
+
+	test("drops non-string repoPaths entries", async () => {
+		await useTempConfig('{"repoPaths":{"a/b":"/ok","c/d":123,"e/f":""}}')
+
+		expect((await loadEditorConfig()).repoPaths).toEqual({ "a/b": "/ok" })
+	})
+
+	test("ignores a non-object repoPaths value", async () => {
+		await useTempConfig('{"repoPaths":"nope"}')
+
+		expect((await loadEditorConfig()).repoPaths).toEqual({})
 	})
 })

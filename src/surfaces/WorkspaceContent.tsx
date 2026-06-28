@@ -13,6 +13,7 @@ import type { WorkspaceLayout } from "../workspace/layout.js"
 import type { WorkspaceDerivations } from "../workspace/derivations.js"
 import { IssueSurface } from "./IssueSurface.js"
 import { PullRequestSurface } from "./PullRequestSurface.js"
+import type { RunsViewModel } from "../hooks/useRunsView.js"
 import { RepoSurface } from "./RepoSurface.js"
 
 export interface WorkspaceContentProps {
@@ -20,6 +21,7 @@ export interface WorkspaceContentProps {
 	readonly activeWorkspaceSurface: WorkspaceSurface
 	readonly commentsViewActive: boolean
 	readonly diffFullView: boolean
+	readonly runsView: RunsViewModel
 	readonly detailFullView: boolean
 	readonly layout: WorkspaceLayout
 	readonly derivations: WorkspaceDerivations
@@ -172,6 +174,7 @@ export const WorkspaceContent = (props: WorkspaceContentProps) => {
 			orderedComments={props.orderedComments}
 			commentSubject={props.selectedCommentSubject}
 			diffFullView={diffFullView}
+			runsView={props.runsView}
 			displayedDiffState={props.displayedDiffState}
 			stackedDiffFiles={props.stackedDiffFiles}
 			diffScrollTop={props.diffScrollTop}

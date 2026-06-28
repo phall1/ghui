@@ -23,6 +23,7 @@ export interface WorkspaceDerivationsInput {
 	readonly showWorkspaceTabs: boolean
 	readonly detailFullView: boolean
 	readonly diffFullView: boolean
+	readonly runsFullView: boolean
 	readonly commentsViewActive: boolean
 	readonly activeWorkspaceSurface: WorkspaceSurface
 	readonly workspaceTabSurfaces: readonly WorkspaceSurface[]
@@ -124,6 +125,7 @@ export const computeWorkspaceDerivations = (input: WorkspaceDerivationsInput): W
 		showWorkspaceTabs,
 		detailFullView,
 		diffFullView,
+		runsFullView,
 		commentsViewActive,
 		activeWorkspaceSurface,
 		workspaceTabSurfaces,
@@ -245,9 +247,9 @@ export const computeWorkspaceDerivations = (input: WorkspaceDerivationsInput): W
 		isFilterEditing: filterMode,
 		onSelectRepository: setSelectedRepositoryIndex,
 	} as const
-	const showWideSplit = activeWorkspaceSurface === "pullRequests" && isWideLayout && !detailFullView && !diffFullView && !commentsViewActive
-	const showRepoSplit = activeWorkspaceSurface === "repos" && isWideLayout && !detailFullView && !diffFullView && !commentsViewActive
-	const showIssueSplit = activeWorkspaceSurface === "issues" && isWideLayout && !detailFullView && !diffFullView && !commentsViewActive
+	const showWideSplit = activeWorkspaceSurface === "pullRequests" && isWideLayout && !detailFullView && !diffFullView && !runsFullView && !commentsViewActive
+	const showRepoSplit = activeWorkspaceSurface === "repos" && isWideLayout && !detailFullView && !diffFullView && !runsFullView && !commentsViewActive
+	const showIssueSplit = activeWorkspaceSurface === "issues" && isWideLayout && !detailFullView && !diffFullView && !runsFullView && !commentsViewActive
 	const issueJunctions = showIssueSplit ? getIssueDetailJunctionRows(selectedIssue, rightPaneWidth) : []
 	const showPaneSplit = showWideSplit || showRepoSplit || showIssueSplit
 	const issueFilterBarHeight = issueActiveFilterLabel ? ACTIVE_FILTER_BAR_HEIGHT : 0

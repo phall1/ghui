@@ -21,6 +21,8 @@ import { SplitPane } from "../ui/paneLayout.js"
 import { Divider, Filler, PlainLine, SeparatorColumn } from "../ui/primitives.js"
 import { PullRequestDiffPane } from "../ui/PullRequestDiffPane.js"
 import { PullRequestList } from "../ui/PullRequestList.js"
+import { PullRequestRunsPane } from "../ui/runs/RunsPane.js"
+import type { RunsViewModel } from "../hooks/useRunsView.js"
 import type { DiffFilePanelBundle } from "./WorkspaceContent.js"
 
 export interface PullRequestSurfaceProps {
@@ -64,6 +66,7 @@ export interface PullRequestSurfaceProps {
 	readonly orderedComments: readonly OrderedComment[]
 	readonly commentSubject: IssueItem | PullRequestItem | null
 	readonly diffFullView: boolean
+	readonly runsView: RunsViewModel
 	readonly displayedDiffState: PullRequestDiffState | undefined
 	readonly stackedDiffFiles: readonly StackedDiffFilePatch[]
 	readonly diffScrollTop: number
@@ -129,6 +132,7 @@ export const PullRequestSurface = (props: PullRequestSurfaceProps) => {
 		orderedComments,
 		commentSubject,
 		diffFullView,
+		runsView,
 		displayedDiffState,
 		stackedDiffFiles,
 		diffScrollTop,
@@ -164,6 +168,26 @@ export const PullRequestSurface = (props: PullRequestSurfaceProps) => {
 				height={wideBodyHeight}
 				loadingIndicator={loadingIndicator}
 				themeGeneration={systemThemeGeneration}
+				showScrollbar={showScrollbars}
+			/>
+		)
+	}
+
+	if (runsView.runsFullView && selectedPullRequest) {
+		return (
+			<PullRequestRunsPane
+				pullRequest={selectedPullRequest}
+				inDetail={runsView.inDetail}
+				runsState={runsView.runsState}
+				detailState={runsView.detailState}
+				runsSelection={runsView.runsSelection}
+				detailSelection={runsView.detailSelection}
+				detailRows={runsView.detailRows}
+				onSelectRow={runsView.selectRow}
+				onActivateRow={runsView.activateRow}
+				contentWidth={fullscreenContentWidth}
+				height={wideBodyHeight}
+				loadingIndicator={loadingIndicator}
 				showScrollbar={showScrollbars}
 			/>
 		)

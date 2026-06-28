@@ -11,6 +11,7 @@ import type {
 	ThemeModalState,
 } from "../ui/modals/types.js"
 import { canEditComment } from "../ui/comments/useCommentMutations.js"
+import type { RunsViewCtx } from "../keymap/runsView.js"
 import type { WorkspaceSurface } from "../workspaceSurfaces.js"
 import { useKeymapWiring } from "./useKeymapWiring.js"
 import type { CommentEditorValue } from "../ui/commentEditor.js"
@@ -34,6 +35,7 @@ export interface UseAppKeymapInput {
 	readonly commandPaletteActive: boolean
 	readonly filterMode: boolean
 	readonly diffFullView: boolean
+	readonly runsFullView: boolean
 	readonly detailFullView: boolean
 	readonly commentsViewActive: boolean
 
@@ -85,6 +87,9 @@ export interface UseAppKeymapInput {
 	readonly setFilterQuery: (next: string) => void
 	readonly filterQuery: string
 	readonly filterDraft: string
+
+	// Runs view (pre-built ctx; the runs feature owns its own atom logic)
+	readonly runsViewCtx: RunsViewCtx
 
 	// Diff actions
 	readonly halfPage: number
@@ -187,6 +192,7 @@ export const useAppKeymap = (i: UseAppKeymapInput): void => {
 				commandPaletteActive: i.commandPaletteActive,
 				filterMode: i.filterMode,
 				diffFullView: i.diffFullView,
+				runsFullView: i.runsFullView,
 				detailFullView: i.detailFullView,
 				commentsViewActive: i.commentsViewActive,
 				textInputActive:
@@ -267,6 +273,7 @@ export const useAppKeymap = (i: UseAppKeymapInput): void => {
 				alignSelectedDiffCommentAnchor: i.alignSelectedDiffCommentAnchor,
 				selectDiffCommentSide: i.selectDiffCommentSide,
 			},
+			runs: i.runsViewCtx,
 			detail: {
 				halfPage: i.halfPage,
 				activeSurface: i.activeWorkspaceSurface,

@@ -1,12 +1,15 @@
 import { Effect } from "effect"
 import * as Atom from "effect/unstable/reactivity/Atom"
+import { errorMessage } from "../errors.js"
 import { BrowserOpener } from "../services/BrowserOpener.js"
 import { Clipboard } from "../services/Clipboard.js"
+import { EditorOpener } from "../services/EditorOpener.js"
 import { GitHubService } from "../services/GitHubService.js"
 import { saveStoredDiffWhitespaceMode } from "../themeStore.js"
 import { commentsViewActiveAtom, selectedCommentKeyAtom } from "../ui/comments/atoms.js"
 import { detailFullViewAtom, detailScrollOffsetAtom } from "../ui/detail/atoms.js"
 import { diffCommentRangeStartIndexAtom, diffFullViewAtom, diffRenderViewAtom, diffWhitespaceModeAtom, diffWrapModeAtom } from "../ui/diff/atoms.js"
+import { pullRequestRunsFor, runDetailSelectionAtom, runsFullViewAtom, runsKey, runsListSelectionAtom, selectedRunIdAtom } from "../ui/runs/atoms.js"
 import { filterDraftAtom, filterModeAtom, filterQueryAtom } from "../ui/filter/atoms.js"
 import { selectedIssueAtom } from "../ui/issues/atoms.js"
 import { activeModalAtom } from "../ui/modals/atoms.js"
@@ -58,6 +61,7 @@ import {
 	repositoryViewAvailableAtom,
 	repositoryViewSubtitleAtom,
 	repositoryViewTitleAtom,
+	runsCloseDisabledReasonAtom,
 	workspaceSurfaceAlreadyActiveReasonAtom,
 	workspaceSurfaceSubtitleAtom,
 } from "./derivations.js"
@@ -124,8 +128,7 @@ function switchWorkspaceSurfaceEffect(surface: WorkspaceSurface) {
 
 const flashErrorEffect = (error: unknown) =>
 	Effect.gen(function* () {
-		const message = error instanceof Error ? error.message : String(error)
-		yield* Atom.set(noticeAtom, message)
+		yield* Atom.set(noticeAtom, errorMessage(error))
 	})
 
 export const globalCommands: readonly CommandDefinition[] = [
@@ -248,6 +251,53 @@ export const globalCommands: readonly CommandDefinition[] = [
 		run: Effect.gen(function* () {
 			yield* Atom.set(diffFullViewAtom, false)
 			yield* Atom.set(diffCommentRangeStartIndexAtom, null)
+		}),
+	}),
+
+	// === Runs cluster (per-PR workflow runs view) ===
+	defineCommand({
+		id: "runs.open",
+		title: "Open workflow runs",
+		scope: "Runs",
+		subtitle: selectedPullRequestLabelAtom,
+		shortcut: "a",
+		keywords: ["actions", "ci", "workflow", "checks", "runs", "jobs"],
+		disabledReason: noPullRequestReasonAtom,
+		run: Effect.gen(function* () {
+			const pr = yield* Atom.get(selectedPullRequestAtom)
+			if (!pr) return
+			yield* Atom.set(selectedRunIdAtom, null)
+			yield* Atom.set(runsListSelectionAtom, 0)
+			yield* Atom.set(runDetailSelectionAtom, 0)
+			yield* Atom.set(diffFullViewAtom, false)
+			yield* Atom.set(detailFullViewAtom, false)
+			yield* Atom.set(commentsViewActiveAtom, false)
+			yield* Atom.set(runsFullViewAtom, true)
+		}),
+	}),
+	defineCommand({
+		id: "runs.close",
+		title: "Close workflow runs",
+		scope: "Runs",
+		subtitle: "Return to the pull request",
+		shortcut: "esc",
+		disabledReason: runsCloseDisabledReasonAtom,
+		run: Effect.gen(function* () {
+			yield* Atom.set(runsFullViewAtom, false)
+			yield* Atom.set(selectedRunIdAtom, null)
+		}),
+	}),
+	defineCommand({
+		id: "runs.refresh",
+		title: "Refresh workflow runs",
+		scope: "Runs",
+		subtitle: selectedPullRequestLabelAtom,
+		shortcut: "r",
+		disabledReason: runsCloseDisabledReasonAtom,
+		run: Effect.gen(function* () {
+			const pr = yield* Atom.get(selectedPullRequestAtom)
+			if (!pr) return
+			yield* Atom.refresh(pullRequestRunsFor(runsKey(pr)))
 		}),
 	}),
 	// === Modal openers (selection-seeded) ===
@@ -447,6 +497,20 @@ export const globalCommands: readonly CommandDefinition[] = [
 			const pr = yield* Atom.get(selectedPullRequestAtom)
 			if (!pr) return
 			yield* BrowserOpener.use((opener) => opener.openPullRequest(pr)).pipe(Effect.catch(flashErrorEffect))
+		}),
+	}),
+	defineCommand({
+		id: "pull.open-editor",
+		title: "Open pull request in editor",
+		scope: "Pull request",
+		subtitle: selectedPullRequestLabelAtom,
+		shortcut: "e",
+		keywords: ["nvim", "neovim", "editor", "vscode", "code", "diffview", "review", "checkout"],
+		disabledReason: noPullRequestReasonAtom,
+		run: Effect.gen(function* () {
+			const pr = yield* Atom.get(selectedPullRequestAtom)
+			if (!pr) return
+			yield* EditorOpener.use((opener) => opener.openPullRequest(pr)).pipe(Effect.catch(flashErrorEffect))
 		}),
 	}),
 	defineCommand({

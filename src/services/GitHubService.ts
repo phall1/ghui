@@ -12,6 +12,8 @@ import {
 	type RepositoryDetails,
 	type RepositoryMergeMethods,
 	type SubmitPullRequestReviewInput,
+	type WorkflowRun,
+	type WorkflowRunDetails,
 } from "../domain.js"
 import { type ItemListInput, type ItemPage, searchQualifier } from "../item.js"
 import { mergeActionCliArgs } from "../mergeActions.js"
@@ -32,6 +34,8 @@ import {
 	parsePullRequestSummary,
 	parseRepositoryDetails,
 	parseRepositoryMergeMethods,
+	parseRunDetails,
+	parseWorkflowRuns,
 	pullRequestFilesToPatch,
 	reviewCommentAsComment,
 	sortComments,
@@ -57,6 +61,8 @@ import {
 	SearchResponseSchema,
 	type SearchResponse,
 	ViewerSchema,
+	WorkflowRunDetailsSchema,
+	WorkflowRunListSchema,
 } from "./githubSchemas.js"
 export { isGitHubRateLimitError } from "./githubRateLimit.js"
 
@@ -84,6 +90,8 @@ export class GitHubService extends Context.Service<
 		readonly getRepositoryDetails: (repository: string) => Effect.Effect<RepositoryDetails, GitHubError>
 		readonly getAuthenticatedUser: () => Effect.Effect<string, GitHubError>
 		readonly getPullRequestDiff: (repository: string, number: number) => Effect.Effect<string, GitHubError>
+		readonly listWorkflowRunsForCommit: (repository: string, headSha: string) => Effect.Effect<readonly WorkflowRun[], GitHubError>
+		readonly getWorkflowRunDetails: (repository: string, runId: number) => Effect.Effect<WorkflowRunDetails, GitHubError>
 		readonly listPullRequestReviewComments: (repository: string, number: number) => Effect.Effect<readonly PullRequestReviewComment[], GitHubError>
 		readonly listPullRequestComments: (repository: string, number: number) => Effect.Effect<readonly PullRequestComment[], GitHubError>
 		readonly listIssueComments: (repository: string, number: number) => Effect.Effect<readonly PullRequestComment[], GitHubError>
@@ -286,6 +294,27 @@ export class GitHubService extends Context.Service<
 					Effect.map((response) => pullRequestFilesToPatch(parsePullRequestFiles(response))),
 				)
 
+			const RUN_LIST_FIELDS = "databaseId,number,attempt,workflowName,name,displayTitle,event,headBranch,headSha,status,conclusion,url,createdAt,startedAt,updatedAt"
+
+			const listWorkflowRunsForCommit = (repository: string, headSha: string) =>
+				ghJson("listWorkflowRunsForCommit", WorkflowRunListSchema, [
+					"run",
+					"list",
+					"--repo",
+					repository,
+					"--commit",
+					headSha,
+					"--limit",
+					String(config.runFetchLimit),
+					"--json",
+					RUN_LIST_FIELDS,
+				]).pipe(Effect.map(parseWorkflowRuns))
+
+			const getWorkflowRunDetails = (repository: string, runId: number) =>
+				ghJson("getWorkflowRunDetails", WorkflowRunDetailsSchema, ["run", "view", String(runId), "--repo", repository, "--json", `${RUN_LIST_FIELDS},jobs`]).pipe(
+					Effect.map(parseRunDetails),
+				)
+
 			const listPullRequestReviewComments = (repository: string, number: number) =>
 				ghJson("listPullRequestReviewComments", CommentsResponseSchema, ["api", "--paginate", "--slurp", `repos/${repository}/pulls/${number}/comments`]).pipe(
 					Effect.map(parsePullRequestComments),
@@ -466,6 +495,8 @@ export class GitHubService extends Context.Service<
 				getRepositoryDetails,
 				getAuthenticatedUser,
 				getPullRequestDiff,
+				listWorkflowRunsForCommit,
+				getWorkflowRunDetails,
 				listPullRequestReviewComments,
 				listPullRequestComments,
 				listIssueComments,

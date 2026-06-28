@@ -18,6 +18,8 @@ interface HintsContext {
 	readonly detailFullView: boolean
 	readonly diffFullView: boolean
 	readonly diffRangeActive: boolean
+	readonly runsFullView: boolean
+	readonly runsInDetail: boolean
 	readonly commentsViewActive: boolean
 	readonly commentsViewOnRealComment: boolean
 	readonly commentsViewCanEditSelected: boolean
@@ -94,6 +96,24 @@ const commentsViewHints = (ctx: HintsContext): readonly HintItem[] => [
 	{ key: "esc", label: "close" },
 ]
 
+const runsViewHints = (ctx: HintsContext): readonly HintItem[] =>
+	ctx.runsInDetail
+		? [
+				{ key: "esc", label: "back" },
+				{ key: "↑↓", label: "steps" },
+				{ key: "enter", label: "open log" },
+				{ key: "n/p", label: "failure" },
+				{ key: "o", label: "run" },
+				{ key: "r", label: "refresh" },
+			]
+		: [
+				{ key: "esc", label: "back" },
+				{ key: "↑↓", label: "runs" },
+				{ key: "enter", label: "open run" },
+				{ key: "o", label: "browser" },
+				{ key: "r", label: "refresh" },
+			]
+
 const defaultHints = (ctx: HintsContext): readonly HintItem[] => {
 	const retrying = ctx.retryProgress._tag === "Retrying"
 	return [
@@ -120,6 +140,7 @@ const defaultHints = (ctx: HintsContext): readonly HintItem[] => {
 
 const footerHints = (ctx: HintsContext): readonly HintItem[] => {
 	if (ctx.commentsViewActive) return commentsViewHints(ctx)
+	if (ctx.runsFullView) return runsViewHints(ctx)
 	if (ctx.diffFullView) return diffViewHints(ctx)
 	if (ctx.detailFullView) return detailFullViewHints(ctx)
 	return defaultHints(ctx)

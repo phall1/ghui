@@ -4,6 +4,7 @@ import { type PullRequestView, viewEquals, viewLabel } from "../pullRequestViews
 import { commentsViewActiveAtom, selectedCommentSubjectAtom } from "../ui/comments/atoms.js"
 import { detailFullViewAtom } from "../ui/detail/atoms.js"
 import { diffFullViewAtom, diffReadyAtom } from "../ui/diff/atoms.js"
+import { runsFullViewAtom } from "../ui/runs/atoms.js"
 import { filterModeAtom, filterQueryAtom } from "../ui/filter/atoms.js"
 import { selectedIssueAtom } from "../ui/issues/atoms.js"
 import {
@@ -60,6 +61,8 @@ export const detailCloseDisabledReasonAtom = Atom.make((get) => (get(detailFullV
 export const diffOpenRequiredReasonAtom = Atom.make((get) => (get(diffFullViewAtom) ? null : "Open a diff first."))
 
 export const diffCloseDisabledReasonAtom = Atom.make((get) => (get(diffFullViewAtom) ? null : "Diff view is not open."))
+
+export const runsCloseDisabledReasonAtom = Atom.make((get) => (get(runsFullViewAtom) ? null : "Runs view is not open."))
 
 export const commentsViewActiveReasonAtom = Atom.make((get) => (get(commentsViewActiveAtom) ? null : "Open comments first."))
 
