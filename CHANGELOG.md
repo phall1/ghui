@@ -1,5 +1,12 @@
 # @kitlangton/ghui
 
+## 0.9.0
+
+### Minor Changes
+
+- f560aa5: Add "open pull request in editor" (`e`): suspend the TUI and launch a configurable command (e.g. `nvim` with diffview/octo, or `code`). Configure `editorCommand` and `repoPaths` in `config.json`, with gh-dash-style `{{...}}` substitutions and `owner/repo` path matching.
+- f560aa5: Add a per-PR GitHub Actions runs view (`a`): see a pull request's workflow runs, drill into jobs and steps, jump between failures, and open a step's log or the run in the browser — without leaving the terminal. Built as a full-screen PR view mode (a peer of the diff view), backed by `gh run list` / `gh run view`.
+
 ## 0.8.0
 
 ### Minor Changes
