@@ -1,5 +1,6 @@
 import { useEffect } from "react"
 import type { PullRequestItem } from "../domain.js"
+import type { WorkspaceSurface } from "../workspaceSurfaces.js"
 import type { CloseModalState, LabelModalState, MergeModalState, PullRequestStateModalState, SubmitReviewModalState } from "../ui/modals/types.js"
 import type { PullRequestDiffState } from "../ui/diff.js"
 import type { DetailHydrationState } from "../ui/pullRequests/useDetailHydration.js"
@@ -24,7 +25,7 @@ export interface UseLoadingStatusInput {
 	readonly isLoadingMorePullRequests: boolean
 	readonly issueFetchInFlight: boolean
 	readonly isLoadingMoreIssues: boolean
-	readonly activeWorkspaceSurface: "pullRequests" | "issues" | "repos"
+	readonly activeWorkspaceSurface: WorkspaceSurface
 	readonly selectedCommentsStatus: "idle" | "loading" | "ready" | "error"
 	readonly selectedDiffState: PullRequestDiffState | undefined
 	readonly labelModal: LabelModalState

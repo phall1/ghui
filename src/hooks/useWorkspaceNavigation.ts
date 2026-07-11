@@ -28,6 +28,7 @@ export interface UseWorkspaceNavigationInput {
 	readonly setActiveIssueView: (next: IssueView) => void
 	readonly setDetailFullView: (next: boolean) => void
 	readonly setDiffFullView: (next: boolean) => void
+	readonly setRunsFullView: (next: boolean) => void
 	readonly setCommentsViewActive: (next: boolean) => void
 	readonly setDiffCommentRangeStartIndex: (next: number | null) => void
 	readonly setFilterDraft: (next: string) => void
@@ -75,6 +76,7 @@ export const useWorkspaceNavigation = (input: UseWorkspaceNavigationInput): Work
 		setActiveIssueView,
 		setDetailFullView,
 		setDiffFullView,
+		setRunsFullView,
 		setCommentsViewActive,
 		setDiffCommentRangeStartIndex,
 		setFilterDraft,
@@ -114,6 +116,7 @@ export const useWorkspaceNavigation = (input: UseWorkspaceNavigationInput): Work
 		resetLoadingMore()
 		setDetailFullView(false)
 		setDiffFullView(false)
+		setRunsFullView(false)
 		setDiffCommentRangeStartIndex(null)
 		setFilterDraft(filterQuery)
 		setNotice(null)
@@ -134,6 +137,7 @@ export const useWorkspaceNavigation = (input: UseWorkspaceNavigationInput): Work
 		setActiveWorkspaceSurface(surface)
 		setDetailFullView(false)
 		setDiffFullView(false)
+		setRunsFullView(false)
 		setCommentsViewActive(false)
 		setDiffCommentRangeStartIndex(null)
 		setFilterMode(false)

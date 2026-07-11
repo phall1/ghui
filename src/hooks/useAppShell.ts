@@ -49,7 +49,6 @@ import { useDiffViewState } from "./useDiffViewState.js"
 import { useViewModeState } from "./useViewModeState.js"
 import { useFilterModal } from "../ui/filter/useFilterModal.js"
 import { DIFF_FILE_PANEL_AUTO_THRESHOLD, diffFilePanelOverrideAtom, selectedDiffKeyAtom, selectedDiffStateAtom } from "../ui/diff/atoms.js"
-import { runsFullViewAtom } from "../ui/runs/atoms.js"
 import { diffCommentThreadMapKey } from "../ui/diff/comments.js"
 import { useDiffLineColors } from "../ui/diff/useDiffLineColors.js"
 import { useDiffLocationPreservation } from "../ui/diff/useDiffLocationPreservation.js"
@@ -95,6 +94,8 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 		setDetailScrollOffset,
 		diffFullView,
 		setDiffFullView,
+		runsFullView,
+		setRunsFullView,
 		commentsViewActive,
 		setCommentsViewActive,
 		commentsViewSelection,
@@ -190,7 +191,6 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 	const terminalWidth = width ?? 100
 	const terminalHeight = height ?? 24
 	const terminalTooSmall = isTerminalTooSmall(terminalWidth, terminalHeight)
-	const runsFullView = useAtomValue(runsFullViewAtom)
 	const showWorkspaceTabs = !detailFullView && !diffFullView && !runsFullView && !commentsViewActive
 	const diffFilePanelOverride = useAtomValue(diffFilePanelOverrideAtom)
 	const setDiffFilePanelOverride = useAtomSet(diffFilePanelOverrideAtom)
@@ -441,6 +441,7 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 		setActiveIssueView,
 		setDetailFullView,
 		setDiffFullView,
+		setRunsFullView,
 		setCommentsViewActive,
 		setDiffCommentRangeStartIndex,
 		setFilterDraft,
@@ -614,7 +615,18 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 	const isSelectedPullRequestDetailError = selectedPullRequest !== null && !selectedPullRequest.detailLoaded && selectedPullRequestDetailError !== null
 	const halfPage = Math.max(1, Math.floor(wideBodyHeight / 2))
 
-	const runsView = useRunsView(selectedPullRequest, halfPage)
+	const runsView = useRunsView(selectedPullRequest, halfPage, flashNotice)
+	const actionsRunsView = useRunsView(null, halfPage, flashNotice, {
+		repository: selectedRepository,
+		active: activeWorkspaceSurface === "actions",
+		onClose: () => {
+			goUpWorkspaceScope()
+		},
+		switchWorkspaceSurface,
+		cycleWorkspaceSurface,
+	})
+	const workflowRunsActive = runsView.runsFullView || activeWorkspaceSurface === "actions"
+	const activeRunsView = activeWorkspaceSurface === "actions" ? actionsRunsView : runsView
 
 	const { loadPullRequestDiff } = useDiffLoader({
 		registry,
@@ -965,8 +977,8 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 		commandPaletteActive,
 		filterMode,
 		diffFullView,
-		runsFullView: runsView.runsFullView,
-		runsViewCtx: runsView.ctx,
+		runsFullView: workflowRunsActive,
+		runsViewCtx: activeRunsView.ctx,
 		detailFullView,
 		commentsViewActive,
 		themeModal,
@@ -1110,6 +1122,7 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 		issuesStatus,
 		issuesError,
 		repositoryItems,
+		actionsRunCount: actionsRunsView.runsState.status === "ready" ? actionsRunsView.runsState.value.length : "…",
 		selectedIssueIndex,
 		selectedRepositoryIndex,
 		hasMorePullRequests,
@@ -1162,8 +1175,8 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 		detailFullView,
 		diffFullView,
 		diffCommentRangeActive,
-		runsFullView,
-		runsInDetail: runsView.inDetail,
+		runsFullView: workflowRunsActive,
+		runsInDetail: activeRunsView.inDetail,
 		commentsViewActive,
 		selectedCommentsStatus,
 		selectedOrderedComment,
@@ -1176,6 +1189,7 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 		selectedPullRequest,
 		pullRequestStatus,
 		issuesStatus,
+		actionsStatus: actionsRunsView.runsState.status,
 		isActiveSurfaceLoading,
 		closeModal,
 		pullRequestStateModal,
@@ -1211,6 +1225,8 @@ export const useAppShell = ({ systemThemeGeneration }: UseAppShellInput) => {
 			commentsViewActive,
 			diffFullView,
 			runsView,
+			actionsRunsView,
+			selectedRepository,
 			detailFullView,
 			layout,
 			derivations,

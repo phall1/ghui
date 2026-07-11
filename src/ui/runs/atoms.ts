@@ -1,3 +1,4 @@
+import { Effect } from "effect"
 import * as Atom from "effect/unstable/reactivity/Atom"
 import { GitHubService } from "../../services/GitHubService.js"
 import { githubRuntime } from "../../services/runtime.js"
@@ -16,6 +17,10 @@ export const selectedRunIdAtom = Atom.make<number | null>(null)
 // walks the flattened job/step rows inside a run.
 export const runsListSelectionAtom = Atom.make(0)
 export const runDetailSelectionAtom = Atom.make(0)
+
+export const repositoryRunsListSelectionAtom = Atom.make(0)
+export const repositoryRunDetailSelectionAtom = Atom.make(0)
+export const repositorySelectedRunIdAtom = Atom.make<number | null>(null)
 
 // === Keying ===
 //
@@ -40,10 +45,26 @@ const parseRunDetailKey = (key: string): { repository: string; runId: number } =
 
 export const pullRequestRunsFor = Atom.family((key: string) => {
 	const { repository, headSha } = parseRunsKey(key)
+	if (!repository || !headSha) return githubRuntime.atom(Effect.succeed<readonly import("../../domain.js").WorkflowRun[]>([])).pipe(Atom.setIdleTTL(0))
 	return githubRuntime.atom(GitHubService.use((github) => github.listWorkflowRunsForCommit(repository, headSha))).pipe(Atom.setIdleTTL(0))
 })
 
+export const repositoryWorkflowRunsFor = Atom.family((repository: string) =>
+	githubRuntime
+		.atom(repository ? GitHubService.use((github) => github.listRepositoryWorkflowRuns(repository)) : Effect.succeed<readonly import("../../domain.js").WorkflowRun[]>([]))
+		.pipe(Atom.setIdleTTL(0)),
+)
+
 export const workflowRunDetailsFor = Atom.family((key: string) => {
 	const { repository, runId } = parseRunDetailKey(key)
+	if (!repository || runId <= 0) return githubRuntime.atom(Effect.never)
 	return githubRuntime.atom(GitHubService.use((github) => github.getWorkflowRunDetails(repository, runId))).pipe(Atom.setIdleTTL(0))
 })
+
+export const rerunWorkflowRunAtom = githubRuntime.fn<{ readonly repository: string; readonly runId: number; readonly failedOnly: boolean }>()((input) =>
+	GitHubService.use((github) => github.rerunWorkflowRun(input.repository, input.runId, input.failedOnly)),
+)
+
+export const cancelWorkflowRunAtom = githubRuntime.fn<{ readonly repository: string; readonly runId: number }>()((input) =>
+	GitHubService.use((github) => github.cancelWorkflowRun(input.repository, input.runId)),
+)

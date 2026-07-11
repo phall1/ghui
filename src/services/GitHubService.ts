@@ -91,7 +91,10 @@ export class GitHubService extends Context.Service<
 		readonly getAuthenticatedUser: () => Effect.Effect<string, GitHubError>
 		readonly getPullRequestDiff: (repository: string, number: number) => Effect.Effect<string, GitHubError>
 		readonly listWorkflowRunsForCommit: (repository: string, headSha: string) => Effect.Effect<readonly WorkflowRun[], GitHubError>
+		readonly listRepositoryWorkflowRuns: (repository: string) => Effect.Effect<readonly WorkflowRun[], GitHubError>
 		readonly getWorkflowRunDetails: (repository: string, runId: number) => Effect.Effect<WorkflowRunDetails, GitHubError>
+		readonly rerunWorkflowRun: (repository: string, runId: number, failedOnly: boolean) => Effect.Effect<void, CommandError>
+		readonly cancelWorkflowRun: (repository: string, runId: number) => Effect.Effect<void, CommandError>
 		readonly listPullRequestReviewComments: (repository: string, number: number) => Effect.Effect<readonly PullRequestReviewComment[], GitHubError>
 		readonly listPullRequestComments: (repository: string, number: number) => Effect.Effect<readonly PullRequestComment[], GitHubError>
 		readonly listIssueComments: (repository: string, number: number) => Effect.Effect<readonly PullRequestComment[], GitHubError>
@@ -310,10 +313,20 @@ export class GitHubService extends Context.Service<
 					RUN_LIST_FIELDS,
 				]).pipe(Effect.map(parseWorkflowRuns))
 
+			const listRepositoryWorkflowRuns = (repository: string) =>
+				ghJson("listRepositoryWorkflowRuns", WorkflowRunListSchema, ["run", "list", "--repo", repository, "--limit", String(config.runFetchLimit), "--json", RUN_LIST_FIELDS]).pipe(
+					Effect.map(parseWorkflowRuns),
+				)
+
 			const getWorkflowRunDetails = (repository: string, runId: number) =>
 				ghJson("getWorkflowRunDetails", WorkflowRunDetailsSchema, ["run", "view", String(runId), "--repo", repository, "--json", `${RUN_LIST_FIELDS},jobs`]).pipe(
 					Effect.map(parseRunDetails),
 				)
+
+			const rerunWorkflowRun = (repository: string, runId: number, failedOnly: boolean) =>
+				ghVoid("rerunWorkflowRun", ["run", "rerun", String(runId), "--repo", repository, ...(failedOnly ? ["--failed"] : [])])
+
+			const cancelWorkflowRun = (repository: string, runId: number) => ghVoid("cancelWorkflowRun", ["run", "cancel", String(runId), "--repo", repository])
 
 			const listPullRequestReviewComments = (repository: string, number: number) =>
 				ghJson("listPullRequestReviewComments", CommentsResponseSchema, ["api", "--paginate", "--slurp", `repos/${repository}/pulls/${number}/comments`]).pipe(
@@ -496,7 +509,10 @@ export class GitHubService extends Context.Service<
 				getAuthenticatedUser,
 				getPullRequestDiff,
 				listWorkflowRunsForCommit,
+				listRepositoryWorkflowRuns,
 				getWorkflowRunDetails,
+				rerunWorkflowRun,
+				cancelWorkflowRun,
 				listPullRequestReviewComments,
 				listPullRequestComments,
 				listIssueComments,

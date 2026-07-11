@@ -95,3 +95,10 @@ export const flattenRunRows = (run: WorkflowRunDetails): readonly RunDetailRow[]
 
 // Indices of failure rows, for n/p navigation.
 export const failureRowIndices = (rows: readonly RunDetailRow[]): readonly number[] => rows.flatMap((row, index) => (isFailureKind(row.glyphKind) ? [index] : []))
+
+export const canCancelRun = (run: WorkflowRunDetails): boolean => run.status !== "completed"
+
+export const canRerunRun = (run: WorkflowRunDetails): boolean => run.status === "completed"
+
+export const canRerunFailedJobs = (run: WorkflowRunDetails): boolean =>
+	canRerunRun(run) && run.jobs.some((job) => job.conclusion === "failure" || job.conclusion === "timed_out" || job.conclusion === "action_required")

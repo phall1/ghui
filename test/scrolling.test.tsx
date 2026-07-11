@@ -157,6 +157,26 @@ describe("PR list scrolling", () => {
 		renderer.destroy()
 	})
 
+	test("repository workspace exposes Actions runs and run details", async () => {
+		const { mockInput, renderOnce, captureCharFrame, renderer } = await setupApp(110, 24)
+
+		await press(mockInput, renderOnce, { kind: "key", name: "1" }, 2)
+		await press(mockInput, renderOnce, { kind: "enter" }, 4)
+		const repositoryReady = await settle(renderOnce, () => captureCharFrame().includes("ACTIONS"))
+		expect(repositoryReady).toBe(true)
+
+		await press(mockInput, renderOnce, { kind: "key", name: "3" }, 4)
+		const runsReady = await settle(renderOnce, () => captureCharFrame().includes("recent workflow runs") && captureCharFrame().includes("Release"))
+		if (!runsReady) throw new Error(`Actions surface never rendered runs:\n${captureCharFrame()}`)
+		expect(captureCharFrame()).toContain("watching active runs")
+
+		await press(mockInput, renderOnce, { kind: "enter" }, 4)
+		const detailsReady = await settle(renderOnce, () => captureCharFrame().includes("build") && captureCharFrame().includes("Build standalone"))
+		expect(detailsReady).toBe(true)
+
+		renderer.destroy()
+	})
+
 	test("initial selection points at first PR", async () => {
 		const { captureCharFrame, renderer } = await setupApp(100, 20)
 		expect(detailPaneNumber(captureCharFrame())).toBe(numberFromIndex(0))

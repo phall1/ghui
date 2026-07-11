@@ -1,6 +1,16 @@
 import { describe, expect, test } from "bun:test"
 import type { RunJob, WorkflowRunDetails } from "../src/domain.js"
-import { conclusionLabel, failureRowIndices, flattenRunRows, formatDuration, runGlyph, runGlyphKind } from "../src/ui/runs/runsRows.js"
+import {
+	canCancelRun,
+	canRerunFailedJobs,
+	canRerunRun,
+	conclusionLabel,
+	failureRowIndices,
+	flattenRunRows,
+	formatDuration,
+	runGlyph,
+	runGlyphKind,
+} from "../src/ui/runs/runsRows.js"
 
 const date = (iso: string) => new Date(iso)
 
@@ -103,5 +113,20 @@ describe("flattenRunRows", () => {
 		const rows = flattenRunRows(run)
 		// indices: 0 job:lint, 1 step, 2 job:test (failure), 3 step install, 4 step run test (failure)
 		expect(failureRowIndices(rows)).toEqual([2, 4])
+	})
+})
+
+describe("workflow run controls", () => {
+	test("allows rerunning completed runs and failed jobs", () => {
+		expect(canRerunRun(run)).toBe(true)
+		expect(canRerunFailedJobs(run)).toBe(true)
+		expect(canCancelRun(run)).toBe(false)
+	})
+
+	test("allows cancelling active runs", () => {
+		const active = { ...run, status: "in_progress", conclusion: null } as const
+		expect(canCancelRun(active)).toBe(true)
+		expect(canRerunRun(active)).toBe(false)
+		expect(canRerunFailedJobs(active)).toBe(false)
 	})
 })

@@ -1,4 +1,5 @@
 import type { RunConclusion, RunStatus, WorkflowRun, WorkflowRunDetails } from "../domain.js"
+import { config } from "../config.js"
 
 // Deterministic workflow-run fixtures for mock mode, keyed off a PR's head SHA so
 // the runs view is fully demoable without GitHub. Produces a realistic spread:
@@ -159,9 +160,9 @@ const buildRun = (repository: string, headSha: string, spec: RunSpec, index: num
 	}
 }
 
-const cache = new Map<string, readonly WorkflowRunDetails[]>()
+const cache = new Map<string, WorkflowRunDetails[]>()
 
-const runsForCommit = (repository: string, headSha: string): readonly WorkflowRunDetails[] => {
+const runsForCommit = (repository: string, headSha: string): WorkflowRunDetails[] => {
 	const key = `${repository}@${headSha}`
 	const existing = cache.get(key)
 	if (existing) return existing
@@ -172,5 +173,54 @@ const runsForCommit = (repository: string, headSha: string): readonly WorkflowRu
 
 export const mockWorkflowRuns = (repository: string, headSha: string): readonly WorkflowRun[] => runsForCommit(repository, headSha).map(({ jobs: _jobs, ...run }) => run)
 
+export const mockRepositoryWorkflowRuns = (repository: string, headShas: readonly string[]): readonly WorkflowRun[] =>
+	headShas
+		.flatMap((headSha) => mockWorkflowRuns(repository, headSha))
+		.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+		.slice(0, config.runFetchLimit)
+
 export const mockWorkflowRunDetails = (repository: string, headSha: string, runIdValue: number): WorkflowRunDetails | null =>
 	runsForCommit(repository, headSha).find((run) => run.id === runIdValue) ?? null
+
+const updateMockRun = (repository: string, runIdValue: number, update: (run: WorkflowRunDetails) => WorkflowRunDetails): boolean => {
+	for (const [key, runs] of cache) {
+		if (!key.startsWith(`${repository}@`)) continue
+		const index = runs.findIndex((run) => run.id === runIdValue)
+		if (index < 0) continue
+		runs[index] = update(runs[index]!)
+		return true
+	}
+	return false
+}
+
+export const mockRerunWorkflowRun = (repository: string, runIdValue: number, failedOnly: boolean): boolean =>
+	updateMockRun(repository, runIdValue, (run) => ({
+		...run,
+		attempt: run.attempt + 1,
+		status: "queued",
+		conclusion: null,
+		createdAt: new Date(),
+		startedAt: null,
+		updatedAt: null,
+		jobs: run.jobs.map((job) =>
+			failedOnly && job.conclusion !== "failure" && job.conclusion !== "timed_out" && job.conclusion !== "action_required"
+				? job
+				: {
+						...job,
+						status: "queued",
+						conclusion: null,
+						startedAt: null,
+						completedAt: null,
+						steps: job.steps.map((step) => ({ ...step, status: "queued", conclusion: null, startedAt: null, completedAt: null })),
+					},
+		),
+	}))
+
+export const mockCancelWorkflowRun = (repository: string, runIdValue: number): boolean =>
+	updateMockRun(repository, runIdValue, (run) => ({
+		...run,
+		status: "completed",
+		conclusion: "cancelled",
+		updatedAt: new Date(),
+		jobs: run.jobs.map((job) => (job.status === "completed" ? job : { ...job, status: "completed", conclusion: "cancelled", completedAt: new Date() })),
+	}))

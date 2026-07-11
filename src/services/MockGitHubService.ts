@@ -14,7 +14,7 @@ import type {
 import type { ItemListInput } from "../item.js"
 import { mergeInfoFromPullRequest } from "../mergeActions.js"
 import { mockAuthor, mockBody, mockIssueTitle, mockLabels, mockPullRequestBranch, mockPullRequestTitle } from "./mockData.js"
-import { mockWorkflowRunDetails, mockWorkflowRuns } from "./mockRuns.js"
+import { mockCancelWorkflowRun, mockRepositoryWorkflowRuns, mockRerunWorkflowRun, mockWorkflowRunDetails, mockWorkflowRuns } from "./mockRuns.js"
 import { GitHubService } from "./GitHubService.js"
 import { loadMockFixtureSnapshot } from "./mockFixtures.js"
 
@@ -294,6 +294,8 @@ export const MockGitHubService = {
 				getAuthenticatedUser: () => Effect.succeed(username),
 				getPullRequestDiff: (repository, number) => Effect.succeed(fixturePullRequest(repository, number)?.diff ?? mockDiff),
 				listWorkflowRunsForCommit: (repository, headSha) => Effect.succeed(mockWorkflowRuns(repository, headSha)),
+				listRepositoryWorkflowRuns: (repository) =>
+					Effect.succeed(mockRepositoryWorkflowRuns(repository, [...new Set([...items, ...userItems].filter((pr) => pr.repository === repository).map((pr) => pr.headRefOid))])),
 				getWorkflowRunDetails: (repository, runId) => {
 					for (const pr of [...items, ...userItems]) {
 						const details = mockWorkflowRunDetails(repository, pr.headRefOid, runId)
@@ -304,6 +306,8 @@ export const MockGitHubService = {
 					const first = mockWorkflowRuns(repository, firstSha)[0]
 					return Effect.succeed(mockWorkflowRunDetails(repository, firstSha, first?.id ?? runId) ?? { ...(first ?? ({} as never)), jobs: [] })
 				},
+				rerunWorkflowRun: (repository, runId, failedOnly) => Effect.sync(() => void mockRerunWorkflowRun(repository, runId, failedOnly)),
+				cancelWorkflowRun: (repository, runId) => Effect.sync(() => void mockCancelWorkflowRun(repository, runId)),
 				listPullRequestReviewComments: (repository, number) => Effect.succeed(reviewComments(repository, number)),
 				listPullRequestComments: (repository, number) => Effect.succeed(pullRequestComments(repository, number)),
 				listIssueComments: (repository, number) => Effect.succeed(issueComments(repository, number)),

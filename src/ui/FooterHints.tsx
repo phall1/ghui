@@ -101,8 +101,10 @@ const runsViewHints = (ctx: HintsContext): readonly HintItem[] =>
 		? [
 				{ key: "esc", label: "back" },
 				{ key: "↑↓", label: "steps" },
-				{ key: "enter", label: "open log" },
+				{ key: "enter", label: "open job" },
 				{ key: "n/p", label: "failure" },
+				{ key: "R/F", label: "rerun" },
+				{ key: "x", label: "cancel" },
 				{ key: "o", label: "run" },
 				{ key: "r", label: "refresh" },
 			]

@@ -15,7 +15,7 @@ import {
 	pullRequestStatusAtom,
 	selectedPullRequestAtom,
 } from "../ui/pullRequests/atoms.js"
-import { selectedRepositoryAtom, workspaceSurfaceAtom } from "../workspace/atoms.js"
+import { selectedRepositoryAtom, workspaceSurfaceAtom, workspaceTabSurfacesAtom } from "../workspace/atoms.js"
 import { type WorkspaceSurface, workspaceSurfaceLabels } from "../workspaceSurfaces.js"
 import { commandRuntimeAtom } from "./runtimeAtom.js"
 
@@ -90,10 +90,22 @@ export const selectedItemLabelAtom = Atom.make((get) => (get(workspaceSurfaceAto
 
 // Workspace surface helpers — generated per surface so commands can be data.
 export const workspaceSurfaceAlreadyActiveReasonAtom = (surface: WorkspaceSurface): Atom.Atom<string | null> =>
-	Atom.make((get) => (get(workspaceSurfaceAtom) === surface ? "Already showing this surface." : null))
+	Atom.make((get) =>
+		!get(workspaceTabSurfacesAtom).includes(surface)
+			? "This surface requires a repository workspace."
+			: get(workspaceSurfaceAtom) === surface
+				? "Already showing this surface."
+				: null,
+	)
 
 export const workspaceSurfaceSubtitleAtom = (surface: WorkspaceSurface): Atom.Atom<string> =>
-	Atom.make((get) => (get(workspaceSurfaceAtom) === surface ? "Already showing this surface" : "Switch project surface"))
+	Atom.make((get) =>
+		!get(workspaceTabSurfacesAtom).includes(surface)
+			? "Open a repository to use this surface"
+			: get(workspaceSurfaceAtom) === surface
+				? "Already showing this surface"
+				: "Switch project surface",
+	)
 
 // Issue-only commands need a slightly different gating: only enabled when the
 // issues surface is active *and* there's a selected issue.

@@ -143,12 +143,16 @@ the resolved `repoPath`. Some common recipes:
 
 ### Workflow runs
 
-Press `a` on a pull request to open its **GitHub Actions runs** full-screen,
-scoped to the PR's head commit:
+Open a repository and select its **Actions** tab to monitor recent workflow runs
+across branches and events. Active runs refresh automatically while the surface
+is visible. You can also press `a` on a pull request to open runs scoped to that
+PR's head commit.
 
-- The runs list shows each workflow run with status, conclusion, duration, and age.
+- The runs list shows each workflow, branch, status, conclusion, duration, and age.
 - `enter` drills into a run to see its jobs and steps; failing steps are easy to spot.
-- `n` / `p` jump between failures, `enter` expands a step, `o` opens the run in your browser, `r` refreshes, and `esc` walks back out.
+- `n` / `p` jump between failures, `o` opens the run in your browser, and `r` refreshes.
+- `R` reruns a completed workflow, `F` reruns failed jobs, and `x` cancels an active run.
+- `tab` / `shift-tab` move between repository surfaces; `esc` walks back through run detail and repository scope.
 
 Requires the GitHub CLI (`gh`) the same as the rest of ghui; nothing extra to configure.
 
@@ -165,7 +169,7 @@ Requires the GitHub CLI (`gh`) the same as the rest of ghui; nothing extra to co
 - `esc`: return from expanded details, leave diff/comment mode, or close modal
 - `r`: refresh
 - `d`: view stacked diff for all changed files
-- `a`: view this PR's GitHub Actions runs (jobs, steps, and failing logs)
+- `a`: view this PR's GitHub Actions runs
 - `shift-r`: review or approve the selected pull request
 - `up` / `down` / `pageup` / `pagedown`: move comment target while viewing a diff
 - `enter`: open a commented diff line, or start a comment on an uncommented line

@@ -115,11 +115,11 @@ browser. Register in `keymap/all.ts`; gate by `runsFullView`.
 
 ## Status
 
-Shipped (slice 1) — `a` opens a PR's runs list → run detail (jobs/steps) with
-failure navigation (`n`/`p`), inline step expansion, `o` open-in-browser, and `r`
-refresh. Built as a PR view mode peer of the diff view (`runsFullViewAtom`,
-`runsView` keymap, `PullRequestRunsPane`), `gh`-backed via
-`listWorkflowRunsForCommit` / `getWorkflowRunDetails` / `getWorkflowRunLog`, with
-mock fixtures. Follow-ups: on-demand full step-log fetch + scroll, `↻` re-run /
-`x` cancel, live auto-refresh, and an optional repo-wide Actions surface reusing
-this run-detail rendering.
+Shipped (slices 1 and 2) — `a` opens a PR's runs list → run detail (jobs/steps)
+with failure navigation (`n`/`p`), `o` open-in-browser, reliable `r` refresh,
+`R` rerun, `F` rerun-failed, and `x` cancel. Built as a PR view mode peer of the
+diff view (`runsFullViewAtom`, `runsView` keymap, `PullRequestRunsPane`),
+`gh`-backed via `listWorkflowRunsForCommit` / `getWorkflowRunDetails` /
+`rerunWorkflowRun` / `cancelWorkflowRun`, with mutable mock fixtures. Follow-ups:
+on-demand full step-log fetch + scroll, live auto-refresh, and the repository-wide
+Actions work tracked in `github-actions-daily-driver.md`.

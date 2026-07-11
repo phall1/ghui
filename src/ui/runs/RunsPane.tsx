@@ -68,15 +68,23 @@ export interface RunsPaneProps {
 	readonly showScrollbar: boolean
 }
 
+interface WorkflowRunsPaneProps extends Omit<RunsPaneProps, "pullRequest"> {
+	readonly repository: string
+	readonly listTitle: string
+	readonly listRight: string
+	readonly listSubline: string
+}
+
 const HeaderLine = ({ left, right, width }: { left: string; right: string; width: number }) => {
-	const gap = Math.max(1, width - left.length - right.length)
+	const rightWidth = Math.min(right.length, Math.max(0, Math.floor(width * 0.45)))
+	const leftWidth = Math.max(1, width - rightWidth - 1)
 	return (
 		<TextLine>
 			<span fg={colors.accent} attributes={TextAttributes.BOLD}>
-				{left}
+				{fitCell(left, leftWidth)}
 			</span>
-			<span>{" ".repeat(gap)}</span>
-			<span fg={colors.muted}>{right}</span>
+			<span> </span>
+			<span fg={colors.muted}>{fitCell(right, rightWidth)}</span>
 		</TextLine>
 	)
 }
@@ -104,7 +112,8 @@ const RunsList = ({
 	onSelectRow: (index: number) => void
 	onActivateRow: (index: number) => void
 }) => {
-	const nameWidth = Math.max(10, Math.floor(paneWidth * 0.34))
+	const nameWidth = Math.max(10, Math.floor(paneWidth * 0.26))
+	const branchWidth = Math.max(10, Math.floor(paneWidth * 0.2))
 	const concWidth = 12
 	const durWidth = 8
 	const ageWidth = 10
@@ -120,6 +129,7 @@ const RunsList = ({
 						<span fg={colors.text} attributes={selected ? TextAttributes.BOLD : 0}>
 							{fitCell(run.workflowName, nameWidth)}
 						</span>
+						<span fg={colors.muted}> {fitCell(run.headBranch, branchWidth)}</span>
 						<span fg={colors.muted}> {fitCell(conclusionLabel(run.status, run.conclusion), concWidth)}</span>
 						<span fg={colors.muted}> {fitCell(formatDuration(run.startedAt, run.updatedAt, now), durWidth)}</span>
 						<span fg={colors.muted}> {fitCell(relativeAge(run.createdAt, now), ageWidth)}</span>
@@ -176,8 +186,11 @@ const RunDetail = ({
 	)
 }
 
-export const PullRequestRunsPane = ({
-	pullRequest,
+const WorkflowRunsPane = ({
+	repository,
+	listTitle,
+	listRight,
+	listSubline,
 	inDetail,
 	runsState,
 	detailState,
@@ -190,22 +203,19 @@ export const PullRequestRunsPane = ({
 	height,
 	loadingIndicator,
 	showScrollbar,
-}: RunsPaneProps) => {
+}: WorkflowRunsPaneProps) => {
 	const now = new Date()
 	// Chrome above the body: header row + subline row + divider row = 3.
 	const bodyHeight = Math.max(1, height - 3)
 	// `contentWidth` is the padded text width (used inside PaddedRow); rows and the
 	// divider span the full pane so the selected-row highlight reaches the border.
 	const paneWidth = contentWidth + 2
-	const title = `${shortRepoName(pullRequest.repository)} #${pullRequest.number}`
+	const detailRun = inDetail && detailState?.status === "ready" ? detailState.value : null
+	const title = detailRun ? `${detailRun.workflowName} #${detailRun.number}` : listTitle
 
-	const headerRight =
-		inDetail && detailState?.status === "ready" ? `${detailState.value.event} → ${detailState.value.headBranch}` : `${pullRequest.headRefName} → ${pullRequest.baseRefName}`
+	const headerRight = detailRun ? `${detailRun.event} → ${detailRun.headBranch}` : listRight
 
-	const subline =
-		inDetail && detailState?.status === "ready"
-			? `${detailState.value.headSha.slice(0, 7)} · ${pullRequest.author}`
-			: `runs for ${pullRequest.headRefOid.slice(0, 7)} · ${pullRequest.author}`
+	const subline = detailRun ? `${detailRun.headSha.slice(0, 7)} · ${detailRun.displayTitle || repository}` : listSubline
 
 	// Every row is height 1, so row offset === selection index. Keep the focused
 	// row inside the viewport on keyboard moves (j/k, ctrl-d/u, gg/G) — matching
@@ -262,3 +272,17 @@ export const PullRequestRunsPane = ({
 		</box>
 	)
 }
+
+export const PullRequestRunsPane = ({ pullRequest, ...props }: RunsPaneProps) => (
+	<WorkflowRunsPane
+		{...props}
+		repository={pullRequest.repository}
+		listTitle={`${shortRepoName(pullRequest.repository)} #${pullRequest.number}`}
+		listRight={`${pullRequest.headRefName} → ${pullRequest.baseRefName}`}
+		listSubline={`runs for ${pullRequest.headRefOid.slice(0, 7)} · ${pullRequest.author}`}
+	/>
+)
+
+export const RepositoryRunsPane = ({ repository, ...props }: Omit<WorkflowRunsPaneProps, "listTitle" | "listRight" | "listSubline">) => (
+	<WorkflowRunsPane {...props} repository={repository} listTitle="Actions" listRight={repository} listSubline="recent workflow runs · watching active runs" />
+)

@@ -30,6 +30,7 @@ export interface ComputeFooterPropsInput {
 	readonly selectedPullRequest: PullRequestItem | null
 	readonly pullRequestStatus: LoadStatus
 	readonly issuesStatus: LoadStatus
+	readonly actionsStatus: "loading" | "error" | "ready"
 	readonly isActiveSurfaceLoading: boolean
 	readonly closeModal: CloseModalState
 	readonly pullRequestStateModal: PullRequestStateModalState
@@ -69,8 +70,16 @@ export const computeFooterProps = (input: ComputeFooterPropsInput): WorkspaceFoo
 	canOpenDiff: input.activeWorkspaceSurface === "pullRequests" && input.selectedPullRequest !== null,
 	canOpenComments: input.selectedCommentSubject !== null,
 	hasError:
-		(input.activeWorkspaceSurface === "pullRequests" && input.pullRequestStatus === "error") || (input.activeWorkspaceSurface === "issues" && input.issuesStatus === "error"),
-	isLoading: input.isActiveSurfaceLoading || input.closeModal.running || input.pullRequestStateModal.running || input.mergeModal.running || input.submitReviewModal.running,
+		(input.activeWorkspaceSurface === "pullRequests" && input.pullRequestStatus === "error") ||
+		(input.activeWorkspaceSurface === "issues" && input.issuesStatus === "error") ||
+		(input.activeWorkspaceSurface === "actions" && input.actionsStatus === "error"),
+	isLoading:
+		input.isActiveSurfaceLoading ||
+		(input.activeWorkspaceSurface === "actions" && input.actionsStatus === "loading") ||
+		input.closeModal.running ||
+		input.pullRequestStateModal.running ||
+		input.mergeModal.running ||
+		input.submitReviewModal.running,
 	loadingIndicator: input.loadingIndicator,
 	retryProgress: input.retryProgress,
 })

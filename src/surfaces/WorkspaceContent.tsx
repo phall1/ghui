@@ -15,6 +15,7 @@ import { IssueSurface } from "./IssueSurface.js"
 import { PullRequestSurface } from "./PullRequestSurface.js"
 import type { RunsViewModel } from "../hooks/useRunsView.js"
 import { RepoSurface } from "./RepoSurface.js"
+import { ActionsSurface } from "./ActionsSurface.js"
 
 export interface WorkspaceContentProps {
 	readonly showScrollbars: boolean
@@ -22,6 +23,8 @@ export interface WorkspaceContentProps {
 	readonly commentsViewActive: boolean
 	readonly diffFullView: boolean
 	readonly runsView: RunsViewModel
+	readonly actionsRunsView: RunsViewModel
+	readonly selectedRepository: string | null
 	readonly detailFullView: boolean
 	readonly layout: WorkspaceLayout
 	readonly derivations: WorkspaceDerivations
@@ -129,6 +132,18 @@ export const WorkspaceContent = (props: WorkspaceContentProps) => {
 				detailPreviewScrollRef={props.scrollRefs.detailPreviewScrollRef}
 				detailFullView={detailFullView}
 				onLinkOpen={props.openInlineLink}
+			/>
+		)
+	}
+	if (activeWorkspaceSurface === "actions" && props.selectedRepository) {
+		return (
+			<ActionsSurface
+				repository={props.selectedRepository}
+				runsView={props.actionsRunsView}
+				contentWidth={layout.fullscreenContentWidth}
+				height={layout.wideBodyHeight}
+				loadingIndicator={props.loadingIndicator}
+				showScrollbar={props.showScrollbars}
 			/>
 		)
 	}

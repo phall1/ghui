@@ -10,6 +10,7 @@ import type { PullRequestList } from "../ui/PullRequestList.js"
 import type { RepoList, RepositoryListItem } from "../ui/RepoList.js"
 import { workspaceTabSeparatorColumns } from "../ui/WorkspaceTabs.js"
 import type { WorkspaceSurface } from "../workspaceSurfaces.js"
+import type { WorkspaceSurfaceCounts } from "../ui/WorkspaceTabs.js"
 
 export interface WorkspaceDerivationsInput {
 	readonly contentWidth: number
@@ -46,6 +47,7 @@ export interface WorkspaceDerivationsInput {
 	readonly issuesStatus: LoadStatus
 	readonly issuesError: string | null
 	readonly repositoryItems: readonly RepositoryListItem[]
+	readonly actionsRunCount: number | string
 	readonly selectedIssueIndex: number
 	readonly selectedRepositoryIndex: number
 	readonly hasMorePullRequests: boolean
@@ -103,7 +105,7 @@ export interface WorkspaceDerivations {
 	readonly narrowIssueListNeedsScroll: boolean
 	readonly repoListNeedsScroll: boolean
 	readonly narrowRepoListNeedsScroll: boolean
-	readonly workspaceTabCounts: { readonly repos: number; readonly pullRequests: number | string; readonly issues: number | string }
+	readonly workspaceTabCounts: WorkspaceSurfaceCounts
 	readonly filterPlaceholder: string
 	readonly workspaceTabJunctions: readonly number[]
 	readonly workspaceTopDividerJunctions: readonly { readonly at: number; readonly char: string }[]
@@ -148,6 +150,7 @@ export const computeWorkspaceDerivations = (input: WorkspaceDerivationsInput): W
 		issuesStatus,
 		issuesError,
 		repositoryItems,
+		actionsRunCount,
 		selectedIssueIndex,
 		selectedRepositoryIndex,
 		hasMorePullRequests,
@@ -264,8 +267,16 @@ export const computeWorkspaceDerivations = (input: WorkspaceDerivationsInput): W
 		repos: repositoryItems.length,
 		pullRequests: hasMorePullRequests ? `${visiblePullRequests.length}+` : visiblePullRequests.length,
 		issues: hasMoreIssues ? `${issues.length}+` : issues.length,
+		actions: actionsRunCount,
 	}
-	const filterPlaceholder = activeWorkspaceSurface === "pullRequests" ? "filter pull requests" : activeWorkspaceSurface === "issues" ? "filter issues" : "filter repositories"
+	const filterPlaceholder =
+		activeWorkspaceSurface === "pullRequests"
+			? "filter pull requests"
+			: activeWorkspaceSurface === "issues"
+				? "filter issues"
+				: activeWorkspaceSurface === "actions"
+					? "filter workflow runs"
+					: "filter repositories"
 	const workspaceTabJunctions = workspaceTabSeparatorColumns(workspaceTabCounts, workspaceTabSurfaces)
 	// Three horizontal dividers, three junction sets. The diff file panel
 	// (when visible) introduces a vertical rail that starts at the top divider
