@@ -1,5 +1,12 @@
 # @kitlangton/ghui
 
+## 0.10.0
+
+### Minor Changes
+
+- 208740f: Add a repository Actions dashboard with active-run watching, run detail, rerun,
+  rerun-failed, cancel, and reliable refresh controls.
+
 ## 0.9.0
 
 ### Minor Changes

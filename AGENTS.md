@@ -2,6 +2,10 @@
 
 ## Release Process
 
+- Fork releases on `phall1/ghui` use `.github/workflows/fork-publish.yml` and
+  publish standalone binaries plus `phall1/tap/ghui`; they do not publish npm.
+- The upstream npm workflow is repository-gated and skips on the fork.
+
 - Release workflow: `.github/workflows/publish.yml`.
 - npm Trusted Publisher should be configured for owner `kitlangton`, repository `ghui`, workflow `publish.yml`, environment `npm`.
 - Add a changeset for every user-facing change with `bun run changeset`.

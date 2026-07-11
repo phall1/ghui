@@ -1,8 +1,8 @@
 # ghui
 
-Terminal UI for keeping up with your open GitHub pull requests across repositories.
+Terminal UI for keeping up with GitHub pull requests, issues, diffs, and Actions across repositories.
 
-`ghui` gives you one keyboard-driven place to review PR details, inspect diffs, leave diff comments, manage labels, toggle draft state, merge, open PRs in GitHub, and copy PR metadata without leaving the terminal.
+`ghui` gives you one keyboard-driven place to review PR details, inspect diffs, monitor and control Actions, leave diff comments, manage labels, toggle draft state, merge, open PRs in GitHub, and copy PR metadata without leaving the terminal.
 
 <img width="1420" height="856" alt="image" src="https://github.com/user-attachments/assets/5e560a4a-5887-4baa-a6d4-e1f4f0410c70" />
 
@@ -11,7 +11,7 @@ Terminal UI for keeping up with your open GitHub pull requests across repositori
 Homebrew is the recommended install path on macOS and Linux. It installs a standalone `ghui` binary, so you do not need Bun or npm at runtime.
 
 ```bash
-brew install kitlangton/tap/ghui
+brew install phall1/tap/ghui
 ```
 
 Upgrade with:
@@ -20,7 +20,9 @@ Upgrade with:
 brew upgrade ghui
 ```
 
-Or install with npm:
+This fork publishes standalone binaries from `phall1/ghui` and updates the
+`phall1/tap` formula automatically. It does not publish the upstream npm package.
+The upstream npm release remains available separately:
 
 ```bash
 npm install -g @kitlangton/ghui
@@ -43,7 +45,7 @@ ghui
 Clone, install, and link:
 
 ```bash
-git clone https://github.com/kitlangton/ghui.git
+git clone https://github.com/phall1/ghui.git
 cd ghui
 bun install
 bun link
@@ -60,7 +62,7 @@ bun run dev
 ## Configuration
 
 - `GHUI_PR_FETCH_LIMIT`: max PRs fetched, defaults to `200`
-- `GHUI_RUN_FETCH_LIMIT`: max workflow runs fetched per PR, defaults to `20`
+- `GHUI_RUN_FETCH_LIMIT`: max workflow runs fetched per PR or repository Actions view, defaults to `20`
 
 Example:
 
